@@ -325,16 +325,16 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   PAINEL DE TÍTULO (CANTO SUPERIOR DIREITO)
+   PAINEL DE TÍTULO (CANTO SUPERIOR ESQUERDO)
    ═══════════════════════════════════════════════════════════════════════════ */
 .panel-title {
   position: fixed;
-  top: 16px;
-  right: 24px;
+  top: 24px;
+  left: 24px;
   z-index: 50;
-  height: 38px;
-  padding: 0 16px;
-  border-radius: 19px;
+  height: 52px;
+  padding: 0 20px;
+  border-radius: 26px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -342,14 +342,14 @@ body {
 }
 
 .app-title-bold {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: -0.3px;
   color: var(--label);
 }
 
 .app-title-beta {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 400;
   letter-spacing: -0.1px;
   color: var(--label-2);

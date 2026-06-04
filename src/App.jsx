@@ -162,7 +162,6 @@ export default function App() {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showSaveMenu,    setShowSaveMenu]     = useState(false);
   const [showPdfSizes,    setShowPdfSizes]     = useState(false);
-  const [showRefsList,    setShowRefsList]     = useState(false);
 
   // ── Novos estados do painel de links, seleção e histórico ─────────────────
   const [linksList, setLinksList] = useState([]);
@@ -1109,35 +1108,34 @@ export default function App() {
           <button
             className={`icon-btn${showSaveMenu ? ' is-active' : ''}`}
             title="Exportar / Salvar"
-            onClick={() => { setShowSaveMenu(s => !s); setShowPdfSizes(false); setShowRefsList(false); }}
+            onClick={() => { setShowSaveMenu(s => !s); setShowPdfSizes(false); }}
           >
             <Save size={18} strokeWidth={1.75} />
           </button>
 
           {showSaveMenu && (
             <div className="save-bubbles">
-              <button className="bubble-btn" title="Referências"
-                onClick={() => { setShowRefsList(s => !s); setShowPdfSizes(false); }}>
-                <Info size={16} strokeWidth={1.75} />
-              </button>
-              <button className="bubble-btn" title="Salvar JSON" onClick={handleSaveJSON}>
+              <button className="bubble-btn" title="Salvar Arquivo Aberto" onClick={handleSaveJSON}>
                 <FileJson size={16} strokeWidth={1.75} />
               </button>
               <div style={{ position: 'relative' }}>
                 <button className="bubble-btn" title="Exportar PDF"
-                  onClick={() => { setShowPdfSizes(s => !s); setShowRefsList(false); }}>
-                  <FileText size={16} strokeWidth={1.75} />
+                  onClick={() => { setShowPdfSizes(s => !s); }}>
+                  <span style={{ fontSize: '9px', fontWeight: 'bold' }}>PDF</span>
                 </button>
                 {showPdfSizes && (
                   <div className="pdf-sub mat">
-                    {['A5','A4','A3','A2'].map(f => (
+                    {['Original', 'A5','A4','A3','A2'].map(f => (
                       <button key={f} className="pill-btn" onClick={() => handleExportPDF(f)}>{f}</button>
                     ))}
                   </div>
                 )}
               </div>
+              <button className="bubble-btn" title="Exportar JPG" onClick={handleExportJPG}>
+                <span style={{ fontSize: '9px', fontWeight: 'bold' }}>JPG</span>
+              </button>
               <button className="bubble-btn" title="Exportar PNG" onClick={handleExportPNG}>
-                <Download size={16} strokeWidth={1.75} />
+                <span style={{ fontSize: '9px', fontWeight: 'bold' }}>PNG</span>
               </button>
             </div>
           )}
@@ -1187,39 +1185,6 @@ export default function App() {
         <span className="zoom-value">{Math.round(zoomLevel * 100)}%</span>
       </div>
 
-      {/* ═══════════════════════════════════════════════
-          PAINEL FLUTUANTE — referências
-          ═══════════════════════════════════════════════ */}
-      {showRefsList && showSaveMenu && (
-        <div className="refs-panel mat">
-          <div className="refs-header">
-            <span className="refs-title">Referências ({getMeta().length})</span>
-            <button className="refs-close" onClick={() => setShowRefsList(false)}>
-              <X size={14} strokeWidth={1.75} />
-            </button>
-          </div>
-          <div className="refs-list">
-            {getMeta().length === 0
-              ? <span className="refs-empty">Nenhuma referência adicionada.</span>
-              : getMeta().map((item, i) => (
-                <div className="ref-item" key={i}>
-                  <div className="ref-info">
-                    <span className="ref-name" title={item.source}>{item.source}</span>
-                    <div className="ref-meta">
-                      <span>{item.type}</span><span>·</span><span>{item.size}</span>
-                    </div>
-                  </div>
-                  {item.source.startsWith('http')
-                    ? <a href={item.source} target="_blank" rel="noreferrer" className="ref-link">
-                        <ExternalLink size={11} strokeWidth={1.75} />
-                      </a>
-                    : <span className="ref-tag">Local</span>}
-                </div>
-              ))
-            }
-          </div>
-        </div>
-      )}
 
       {/* ═══════════════════════════════════════════════
           SIDEBAR DESLIZANTE — LINKS ADICIONADOS
