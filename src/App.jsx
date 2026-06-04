@@ -162,6 +162,8 @@ export default function App() {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showSaveMenu,    setShowSaveMenu]     = useState(false);
   const [showPdfSizes,    setShowPdfSizes]     = useState(false);
+  const [showOnboarding,  setShowOnboarding]  = useState(true);
+  const [activeOnboardingSlide, setActiveOnboardingSlide] = useState(0);
 
   // ── Novos estados do painel de links, seleção e histórico ─────────────────
   const [linksList, setLinksList] = useState([]);
@@ -1040,11 +1042,15 @@ export default function App() {
         <canvas ref={canvasRef} />
       </div>
 
-      {/* ── Título no Canto Superior Esquerdo (Painel Flutuante) ── */}
-      <div className="panel-title mat">
+      {/* ── Título no Canto Superior Esquerdo (Painel Flutuante Interativo) ── */}
+      <button 
+        className="panel-title mat"
+        title="Apresentação e Guia (Onboarding)"
+        onClick={() => { setShowOnboarding(true); setActiveOnboardingSlide(0); }}
+      >
         <span className="app-title-bold">Artero</span>
         <span className="app-title-beta">Open Beta</span>
-      </div>
+      </button>
 
       {/* ═══════════════════════════════════════════════
           TOOLBAR CENTRAL — ferramentas principais
@@ -1245,6 +1251,138 @@ export default function App() {
                 </div>
               ))
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════
+          JANELA DE ONBOARDING (CARROSSEL)
+          ═══════════════════════════════════════════════ */}
+      {showOnboarding && (
+        <div className="onboarding-overlay" onClick={() => setShowOnboarding(false)}>
+          <div className="onboarding-modal mat" onClick={(e) => e.stopPropagation()}>
+            <button className="onboarding-close-btn" onClick={() => setShowOnboarding(false)} title="Fechar Onboarding">
+              <X size={16} strokeWidth={2} />
+            </button>
+
+            <div className="onboarding-content-wrap">
+              <div 
+                className="onboarding-slides-track"
+                style={{ transform: `translateX(-${activeOnboardingSlide * 100}%)` }}
+              >
+                {/* Slide 1: Apresentação */}
+                <div className="onboarding-slide">
+                  <div className="onboarding-icon-banner">
+                    <span className="onboarding-logo-pill">V1</span>
+                    <div className="onboarding-app-logo">
+                      <span className="app-title-bold" style={{ fontSize: '32px' }}>Artero</span>
+                      <span className="app-title-beta" style={{ fontSize: '18px', marginLeft: '6px' }}>Open Beta</span>
+                    </div>
+                  </div>
+                  <h2 className="onboarding-title">Sua Prancheta Visual Minimalista</h2>
+                  <p className="onboarding-desc">
+                    O Artero é o painel mais simples do mundo para colagem de referências e criação de moodboards. Desenhado seguindo as diretrizes HIG da Apple, ele oferece uma tela livre de fricções para seu processo criativo.
+                  </p>
+                  <div className="onboarding-tip-box">
+                    <span className="onboarding-tip-title">💡 Dica Rápida</span>
+                    <span className="onboarding-tip-desc">Arraste imagens diretamente do seu navegador ou computador e solte-as em qualquer lugar da tela!</span>
+                  </div>
+                </div>
+
+                {/* Slide 2: Recursos */}
+                <div className="onboarding-slide">
+                  <h2 className="onboarding-title">Ferramentas & Interação</h2>
+                  <div className="onboarding-features-list">
+                    <div className="onboarding-feature-item">
+                      <LayoutGrid size={18} className="feature-icon" />
+                      <div className="feature-details">
+                        <span className="feature-name">Grid de Auto-organização</span>
+                        <span className="feature-desc">Organize todas as imagens instantaneamente em um layout alinhado com um clique.</span>
+                      </div>
+                    </div>
+                    <div className="onboarding-feature-item">
+                      <Contrast size={18} className="feature-icon" />
+                      <div className="feature-details">
+                        <span className="feature-name">Modo Preto e Branco</span>
+                        <span className="feature-desc">Selecione uma imagem e clique no contraste no menu ou na Sidebar para deixá-la monocromática.</span>
+                      </div>
+                    </div>
+                    <div className="onboarding-feature-item">
+                      <span className="feature-kbd-icon">Ctrl+V</span>
+                      <div className="feature-details">
+                        <span className="feature-name">Colagem Direta do Clipboard</span>
+                        <span className="feature-desc">Copie qualquer imagem externa e use Ctrl+V para colá-la direto na prancheta.</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Slide 3: Salvamento e Exportação */}
+                <div className="onboarding-slide">
+                  <h2 className="onboarding-title">Salvar & Exportar</h2>
+                  <div className="onboarding-features-list">
+                    <div className="onboarding-feature-item">
+                      <Save size={18} className="feature-icon" />
+                      <div className="feature-details">
+                        <span className="feature-name">Auto-salvamento em Cache</span>
+                        <span className="feature-desc">Seu progresso é salvo no IndexedDB local de forma silenciosa e resiliente (sem limites de 5MB).</span>
+                      </div>
+                    </div>
+                    <div className="onboarding-feature-item">
+                      <FileText size={18} className="feature-icon" />
+                      <div className="feature-details">
+                        <span className="feature-name">Exportação de Imagens e PDF</span>
+                        <span className="feature-desc">Salve em PNG, JPG ou gere PDFs em tamanhos de papel padronizados (A2, A3, A4, A5) ou original.</span>
+                      </div>
+                    </div>
+                    <div className="onboarding-feature-item">
+                      <FileJson size={18} className="feature-icon" />
+                      <div className="feature-details">
+                        <span className="feature-name">Salvar Arquivo Aberto (JSON)</span>
+                        <span className="feature-desc">Salve um arquivo editável local para compartilhar ou carregar seu moodboard de volta.</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="onboarding-footer">
+              <button 
+                className="onboarding-nav-btn text" 
+                disabled={activeOnboardingSlide === 0} 
+                onClick={() => setActiveOnboardingSlide(s => s - 1)}
+              >
+                Voltar
+              </button>
+
+              <div className="onboarding-dots">
+                {[0, 1, 2].map((idx) => (
+                  <button 
+                    key={idx} 
+                    className={`onboarding-dot${activeOnboardingSlide === idx ? ' is-active' : ''}`}
+                    onClick={() => setActiveOnboardingSlide(idx)}
+                    title={`Ir para slide ${idx + 1}`}
+                  />
+                ))}
+              </div>
+
+              {activeOnboardingSlide < 2 ? (
+                <button 
+                  className="onboarding-nav-btn fill" 
+                  onClick={() => setActiveOnboardingSlide(s => s + 1)}
+                >
+                  Avançar
+                </button>
+              ) : (
+                <button 
+                  className="onboarding-nav-btn fill accent" 
+                  onClick={() => setShowOnboarding(false)}
+                >
+                  Começar
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

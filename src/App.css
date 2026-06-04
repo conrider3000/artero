@@ -339,6 +339,20 @@ body {
   align-items: center;
   gap: 6px;
   user-select: none;
+  background: var(--mat);
+  border: 1px solid var(--mat-border);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s ease, transform 0.12s ease;
+  outline: none;
+}
+
+.panel-title:hover {
+  background: var(--fill-2);
+}
+
+.panel-title:active {
+  transform: scale(0.97);
 }
 
 .app-title-bold {
@@ -657,3 +671,291 @@ body {
   from { opacity: 0; transform: translateX(30px); }
   to   { opacity: 1; transform: translateX(0); }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   JANELA DE ONBOARDING (ESTILO APPLE HIG)
+   ═══════════════════════════════════════════════════════════════════════════ */
+.onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeInOnboard 0.25s ease-out both;
+}
+
+.onboarding-modal {
+  width: 480px;
+  height: 500px;
+  border-radius: 24px;
+  padding: 32px 32px 24px 32px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-float);
+  animation: scaleInOnboard 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+  overflow: hidden;
+}
+
+.onboarding-close-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--label-2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, transform 0.12s;
+  z-index: 210;
+}
+.onboarding-close-btn:hover { background: var(--fill-2); color: var(--label); }
+.onboarding-close-btn:active { transform: scale(0.92); }
+.onboarding-close-btn svg { stroke: var(--label-2); }
+
+.onboarding-content-wrap {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  margin-top: 8px;
+}
+
+.onboarding-slides-track {
+  display: flex;
+  width: 300%; /* 3 slides */
+  height: 100%;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.onboarding-slide {
+  width: 33.3333%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding-right: 12px;
+}
+
+.onboarding-icon-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.onboarding-logo-pill {
+  background: var(--blue);
+  color: #FFFFFF;
+  padding: 3px 8px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.onboarding-app-logo {
+  display: flex;
+  align-items: baseline;
+}
+
+.onboarding-title {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--label);
+  margin-bottom: 12px;
+}
+
+.onboarding-desc {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--label-2);
+  margin-bottom: 24px;
+}
+
+.onboarding-tip-box {
+  background: var(--fill-3);
+  border: 1px solid var(--mat-border);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.onboarding-tip-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--label);
+}
+
+.onboarding-tip-desc {
+  font-size: 12px;
+  color: var(--label-2);
+  line-height: 1.45;
+}
+
+.onboarding-features-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.onboarding-feature-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.onboarding-feature-item .feature-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--fill-3);
+  border: 1px solid var(--mat-border);
+  color: var(--blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.onboarding-feature-item .feature-icon svg { stroke: var(--blue); }
+
+.onboarding-feature-item .feature-kbd-icon {
+  width: 48px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--fill-2);
+  border: 1px solid var(--mat-border);
+  color: var(--label-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  flex-shrink: 0;
+  box-shadow: 0 1.5px 0 rgba(0,0,0,0.1);
+}
+
+.feature-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.feature-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--label);
+}
+
+.feature-desc {
+  font-size: 11.5px;
+  color: var(--label-2);
+  line-height: 1.4;
+}
+
+.onboarding-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 16px;
+  border-top: 1px solid var(--separator);
+  margin-top: 16px;
+}
+
+.onboarding-nav-btn {
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  outline: none;
+}
+
+.onboarding-nav-btn.text {
+  background: transparent;
+  border: none;
+  color: var(--label-2);
+  padding: 8px 16px;
+  border-radius: 8px;
+}
+.onboarding-nav-btn.text:hover:not(:disabled) {
+  color: var(--label);
+  background: var(--fill-2);
+}
+.onboarding-nav-btn.text:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+.onboarding-nav-btn.fill {
+  background: var(--fill-2);
+  border: 1px solid var(--mat-border);
+  color: var(--label);
+  padding: 8px 20px;
+  border-radius: 18px;
+}
+.onboarding-nav-btn.fill:hover {
+  background: var(--fill);
+}
+.onboarding-nav-btn.fill:active {
+  transform: scale(0.96);
+}
+
+.onboarding-nav-btn.fill.accent {
+  background: var(--blue);
+  border: none;
+  color: #FFFFFF;
+  box-shadow: 0 2px 8px rgba(10, 132, 255, 0.3);
+}
+.onboarding-nav-btn.fill.accent:hover {
+  filter: brightness(1.1);
+}
+
+.onboarding-dots {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.onboarding-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: none;
+  background: var(--label-3);
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 0;
+}
+
+.onboarding-dot:hover {
+  background: var(--label-2);
+}
+
+.onboarding-dot.is-active {
+  background: var(--blue);
+  transform: scale(1.3);
+}
+
+@keyframes fadeInOnboard {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes scaleInOnboard {
+  from { transform: scale(0.95) translateY(8px); opacity: 0; }
+  to   { transform: scale(1) translateY(0); opacity: 1; }
+}
+
