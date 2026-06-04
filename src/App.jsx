@@ -3,11 +3,32 @@ import * as fabric from 'fabric';
 import {
   ImagePlus, MousePointer2, ZoomIn, ZoomOut, Save, X,
   ExternalLink, Download, FileText, Info, FileJson,
-  Lock, Unlock, Maximize2, Minus, Plus, LayoutGrid
+  Minus, Plus, Link, Undo2, Redo2, Trash2
 } from 'lucide-react';
 import { HexColorPicker } from 'react-colorful';
 import { jsPDF } from 'jspdf';
 import './App.css';
+
+// ── Carregador dinâmico do heic2any (HEIC de iPhone) ──────────────────────────
+const loadHeic2Any = () => {
+  if (window.heic2any) return Promise.resolve(window.heic2any);
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/heic2any@0.0.4/dist/heic2any.min.js';
+    script.onload = () => resolve(window.heic2any);
+    script.onerror = (e) => reject(new Error('Erro ao carregar heic2any: ' + e.message));
+    document.head.appendChild(script);
+  });
+};
+
+// ── Identificador de arquivos de imagem (inclui HEIC) ───────────────────────
+const isImageFile = (file) => {
+  if (file.type && file.type.startsWith('image/')) return true;
+  if (file.type === 'image/heic') return true;
+  const ext = file.name.split('.').pop().toLowerCase();
+  const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'tiff', 'heic', 'ico'];
+  return imageExts.includes(ext);
+};
 
 // ── Presets ──────────────────────────────────────────────────────────────────
 const PRESETS = {
@@ -82,6 +103,18 @@ export default function App() {
   const [showPdfSizes,    setShowPdfSizes]     = useState(false);
   const [showRefsList,    setShowRefsList]     = useState(false);
 
+  // ── Novos estados do painel de links, seleção e histórico ─────────────────
+  const [linksList, setLinksList] = useState([]);
+  const [showLinksDrawer, setShowLinksDrawer] = useState(false);
+  const [hasSelection, setHasSelection] = useState(false);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  // Pilhas de histórico para Undo/Redo
+  const undoStack = useRef([]);
+  const redoStack = useRef([]);
+  const isApplyingHistory = useRef(false);
+
   // ── Sincroniza refs ───────────────────────────────────────────────────────
   useEffect(() => { virtualWRef.current = virtualW; }, [virtualW]);
   useEffect(() => { virtualHRef.current = virtualH; }, [virtualH]);
@@ -90,6 +123,150 @@ export default function App() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
   }, [isDark]);
+
+  // ── Lógica de histórico (Undo/Redo) ───────────────────────────────────────
+  const saveHistory = useCallback(() => {
+    const fc = fabricRef.current;
+    if (!fc || isApplyingHistory.current) return;
+    const json = fc.toJSON(['meta']);
+    
+    // Evita salvar estado duplicado consecutivamente
+    if (undoStack.current.length > 0) {
+      const last = undoStack.current[undoStack.current.length - 1];
+      if (JSON.stringify(last) === JSON.stringify(json)) return;
+    }
+
+    undoStack.current.push(json);
+    if (undoStack.current.length > 40) undoStack.current.shift();
+    redoStack.current = []; // limpa o redo stack em novas ações
+    setCanUndo(undoStack.current.length > 1);
+    setCanRedo(false);
+  }, []);
+
+  const handleUndo = useCallback(() => {
+    const fc = fabricRef.current;
+    if (!fc || undoStack.current.length <= 1) return;
+
+    isApplyingHistory.current = true;
+    const current = fc.toJSON(['meta']);
+    redoStack.current.push(current);
+
+    undoStack.current.pop(); // remove o atual
+    const previous = undoStack.current[undoStack.current.length - 1];
+
+    fc.loadFromJSON(previous).then(() => {
+      fc.renderAll();
+      isApplyingHistory.current = false;
+      setCanUndo(undoStack.current.length > 1);
+      setCanRedo(true);
+    }).catch(err => {
+      console.error(err);
+      isApplyingHistory.current = false;
+    });
+  }, []);
+
+  const handleRedo = useCallback(() => {
+    const fc = fabricRef.current;
+    if (!fc || redoStack.current.length === 0) return;
+
+    isApplyingHistory.current = true;
+    const next = redoStack.current.pop();
+    const current = fc.toJSON(['meta']);
+    undoStack.current.push(current);
+
+    fc.loadFromJSON(next).then(() => {
+      fc.renderAll();
+      isApplyingHistory.current = false;
+      setCanUndo(true);
+      setCanRedo(redoStack.current.length > 0);
+    }).catch(err => {
+      console.error(err);
+      isApplyingHistory.current = false;
+    });
+  }, []);
+
+  // ── Atualização da lista de links (Referências reativas) ─────────────────
+  const updateLinksList = useCallback(() => {
+    const fc = fabricRef.current;
+    if (!fc) return;
+    const objects = fc.getObjects();
+    const list = objects
+      .filter(o => o.get('meta'))
+      .map(o => ({
+        id: o.id || (o.id = Math.random().toString(36).substr(2, 9)),
+        meta: o.get('meta'),
+        ref: o
+      }));
+    setLinksList(list);
+  }, []);
+
+  // ── Lógica de Focar e Selecionar Objeto pelo Painel ────────────────────────
+  const focusObject = useCallback((obj) => {
+    const fc = fabricRef.current;
+    if (!fc || !obj) return;
+    fc.setActiveObject(obj);
+
+    const screenW = window.innerWidth;
+    const screenH = window.innerHeight;
+    const objCenter = obj.getCenterPoint();
+    const zoom = fc.getZoom();
+
+    const tx = (screenW / 2) - objCenter.x * zoom;
+    const ty = (screenH / 2) - objCenter.y * zoom;
+
+    fc.setViewportTransform([zoom, 0, 0, zoom, tx, ty]);
+    fc.renderAll();
+  }, []);
+
+  // ── Atualização do estado de seleção ──────────────────────────────────────
+  const updateSelection = useCallback(() => {
+    const fc = fabricRef.current;
+    if (!fc) return;
+    setHasSelection(!!fc.getActiveObject());
+  }, []);
+
+  // ── Excluir objeto selecionado ──────────────────────────────────────────
+  const handleDeleteSelected = useCallback(() => {
+    const fc = fabricRef.current;
+    if (!fc) return;
+    const active = fc.getActiveObject();
+    if (active) {
+      fc.remove(active);
+      fc.discardActiveObject();
+      fc.renderAll();
+    }
+  }, []);
+
+  // ── Conversor e validador de imagem (Suporte HEIC) ──────────────────────
+  const processImageFile = async (file) => {
+    const isHeic = file.name.toLowerCase().endsWith('.heic') || file.type === 'image/heic';
+    if (isHeic) {
+      try {
+        const heic2any = await loadHeic2Any();
+        const convertedBlob = await heic2any({
+          blob: file,
+          toType: 'image/png'
+        });
+        const blobToRead = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
+        return {
+          blob: blobToRead,
+          name: file.name.replace(/\.heic$/i, '.png'),
+          type: 'image/png',
+          size: blobToRead.size
+        };
+      } catch (e) {
+        console.error("Erro ao converter HEIC:", e);
+        alert("Não foi possível processar o arquivo HEIC do iPhone. Tente outro formato.");
+        throw e;
+      }
+    }
+    return {
+      blob: file,
+      name: file.name,
+      type: file.type,
+      size: file.size
+    };
+  };
 
   // ════════════════════════════════════════════════════════════════════════
   // centerAndFit — GEOMETRIA DA CENTRALIZAÇÃO INFALÍVEL
@@ -202,9 +379,29 @@ export default function App() {
     });
     fabricRef.current = fc;
 
+    // Salva o estado de inicialização na pilha de Undo
+    saveHistory();
+
     // Centraliza inicial
     const z = centerAndFit();
     setZoomLevel(z);
+
+    // ── Eventos do Fabric.js para histórico e reatividade ────────────────
+    fc.on('object:added', () => {
+      saveHistory();
+      updateLinksList();
+    });
+    fc.on('object:removed', () => {
+      saveHistory();
+      updateLinksList();
+    });
+    fc.on('object:modified', () => {
+      saveHistory();
+    });
+
+    fc.on('selection:created', updateSelection);
+    fc.on('selection:updated', updateSelection);
+    fc.on('selection:cleared', updateSelection);
 
     // ── Arrastar para panoramizar (Pan livre) ───────────────────────────────
     let panning = false, lastX = 0, lastY = 0;
@@ -257,6 +454,36 @@ export default function App() {
     };
     window.addEventListener('resize', onResize);
 
+    // ── Atalhos de teclado (Delete, Backspace, Undo, Redo) ─────────────────
+    const onKeyDown = (e) => {
+      const activeObject = fc.getActiveObject();
+      const isInputActive = document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA';
+      if (isInputActive) return;
+
+      // Delete ou Backspace deletam o objeto ativo
+      if ((e.key === 'Delete' || e.key === 'Backspace') && activeObject) {
+        e.preventDefault();
+        handleDeleteSelected();
+      }
+
+      // Ctrl + Z ou Cmd + Z (Undo)
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        handleUndo();
+      }
+
+      // Ctrl + Shift + Z ou Cmd + Shift + Z / Ctrl + Y (Redo)
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        handleRedo();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+
     // ── Drop de imagem ────────────────────────────────────────────────────
     const placeImg = (url, name, type = 'image/web', size = null) => {
       fabric.FabricImage.fromURL(url, { crossOrigin: 'anonymous' }).then((img) => {
@@ -266,25 +493,35 @@ export default function App() {
       }).catch(console.error);
     };
 
-    const onDrop = (e) => {
+    const onDrop = async (e) => {
       e.preventDefault();
       if (e.dataTransfer.files?.length) {
         const f = e.dataTransfer.files[0];
-        if (f.type.startsWith('image/')) {
-          const r = new FileReader();
-          r.onload = (ev) => placeImg(ev.target.result, f.name, f.type, f.size);
-          r.readAsDataURL(f);
+        if (isImageFile(f)) {
+          try {
+            const processed = await processImageFile(f);
+            const r = new FileReader();
+            r.onload = (ev) => placeImg(ev.target.result, processed.name, processed.type, processed.size);
+            r.readAsDataURL(processed.blob);
+          } catch (err) {
+            console.error("Falha ao processar arquivo dropado:", err);
+          }
           return;
         }
       }
       const url = e.dataTransfer.getData('url')
         || e.dataTransfer.getData('text/uri-list')
         || e.dataTransfer.getData('text/plain');
-      if (url) { placeImg(url, url, 'image/web'); return; }
+      if (url && (url.startsWith('http') || url.startsWith('data:image'))) {
+        placeImg(url, url, 'image/web');
+        return;
+      }
       const html = e.dataTransfer.getData('text/html');
       if (html) {
-        const img = new DOMParser().parseFromString(html, 'text/html').querySelector('img');
-        if (img?.src) placeImg(img.src, img.src, 'image/web');
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        const img = doc.querySelector('img');
+        const src = img ? (img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('srcset')?.split(' ')[0]) : null;
+        if (src) placeImg(src, src, 'image/web');
       }
     };
 
@@ -293,10 +530,11 @@ export default function App() {
 
     return () => {
       window.removeEventListener('resize', onResize);
+      window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('drop', onDrop);
       fc.dispose();
     };
-  }, [centerAndFit]); // roda UMA vez e sincroniza com a função centerAndFit
+  }, [centerAndFit, handleDeleteSelected, handleUndo, handleRedo, saveHistory, updateSelection, updateLinksList]);
 
   // ── Tamanho da prancheta virtual ──────────────────────────────────────────
   useEffect(() => {
@@ -315,17 +553,22 @@ export default function App() {
     if (!fc) return;
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = (e) => {
+    input.accept = 'image/*, image/heic';
+    input.onchange = async (e) => {
       const file = e.target.files[0];
       if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        fabric.FabricImage.fromURL(ev.target.result).then((img) => {
-          handleImageLoaded(img, file.name, file.type, file.size);
-        });
-      };
-      reader.readAsDataURL(file);
+      try {
+        const processed = await processImageFile(file);
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          fabric.FabricImage.fromURL(ev.target.result).then((img) => {
+            handleImageLoaded(img, processed.name, processed.type, processed.size);
+          });
+        };
+        reader.readAsDataURL(processed.blob);
+      } catch (err) {
+        console.error("Erro ao carregar imagem selecionada:", err);
+      }
     };
     input.click();
   };
@@ -340,13 +583,20 @@ export default function App() {
     setVirtualH(window.innerHeight);
   };
 
-  const handleZoom = (factor) => {
+  const handleZoom = (direction) => {
     const fc = fabricRef.current;
     if (!fc) return;
+    const currentZoom = fc.getZoom();
+    let z = currentZoom;
+    if (direction === 'in') {
+      z = Math.round((currentZoom + 0.1) * 10) / 10;
+    } else {
+      z = Math.round((currentZoom - 0.1) * 10) / 10;
+    }
     const w = virtualWRef.current, h = virtualHRef.current;
     // zoom mínimo permitindo ver a prancheta inteira
     const minZ = Math.min((window.innerWidth - 80) / w, (window.innerHeight - 130) / h) * 0.1;
-    const z = Math.max(minZ, Math.min(20, fc.getZoom() * factor));
+    z = Math.max(minZ, Math.min(20, z));
     const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
 
     fc.zoomToPoint({ x: cx, y: cy }, z);
@@ -391,7 +641,7 @@ export default function App() {
     const data = getArtboardDataURL();
     if (!data) return;
     const doc = new jsPDF({
-      orientation: sheetW > sheetH ? 'landscape' : 'portrait',
+      orientation: virtualW > virtualH ? 'landscape' : 'portrait',
       unit: 'mm', format: fmt.toLowerCase(),
     });
     doc.addImage(data, 'PNG', 0, 0,
@@ -450,6 +700,27 @@ export default function App() {
 
         <button className="icon-btn" title="Adicionar imagem" onClick={handleAddImage}>
           <ImagePlus size={18} strokeWidth={1.75} />
+        </button>
+
+        <div className="bar-sep" />
+
+        {/* Undo e Redo */}
+        <button className="icon-btn" title="Desfazer (Ctrl+Z)" onClick={handleUndo} disabled={!canUndo}>
+          <Undo2 size={18} strokeWidth={1.75} style={{ opacity: canUndo ? 1 : 0.4 }} />
+        </button>
+
+        <button className="icon-btn" title="Refazer (Ctrl+Shift+Z)" onClick={handleRedo} disabled={!canRedo}>
+          <Redo2 size={18} strokeWidth={1.75} style={{ opacity: canRedo ? 1 : 0.4 }} />
+        </button>
+
+        {/* Lixeira */}
+        <button className="icon-btn" title="Excluir selecionado (Delete)" onClick={handleDeleteSelected} disabled={!hasSelection}>
+          <Trash2 size={18} strokeWidth={1.75} style={{ color: hasSelection ? '#FF3B30' : 'var(--label)', opacity: hasSelection ? 1 : 0.4 }} />
+        </button>
+
+        {/* Links */}
+        <button className={`icon-btn${showLinksDrawer ? ' is-active' : ''}`} title="Painel de Links & Referências" onClick={() => setShowLinksDrawer(d => !d)}>
+          <Link size={18} strokeWidth={1.75} />
         </button>
 
         <div className="bar-sep" />
@@ -534,10 +805,10 @@ export default function App() {
           PAINEL DIREITO — zoom de visualização
           ═══════════════════════════════════════════════ */}
       <div className="panel-right mat">
-        <button className="icon-btn" title="Zoom −" onClick={() => handleZoom(1/1.15)}>
+        <button className="icon-btn" title="Zoom −" onClick={() => handleZoom('out')}>
           <ZoomOut size={15} strokeWidth={1.75} />
         </button>
-        <button className="icon-btn" title="Zoom +" onClick={() => handleZoom(1.15)}>
+        <button className="icon-btn" title="Zoom +" onClick={() => handleZoom('in')}>
           <ZoomIn size={15} strokeWidth={1.75} />
         </button>
         <div className="bar-sep" />
@@ -574,6 +845,65 @@ export default function App() {
                 </div>
               ))
             }
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════
+          SIDEBAR DESLIZANTE — LINKS ADICIONADOS
+          ═══════════════════════════════════════════════ */}
+      {showLinksDrawer && (
+        <div className="links-drawer mat">
+          <div className="links-drawer-header">
+            <span className="links-drawer-title">Links & Arquivos ({linksList.length})</span>
+            <button className="links-drawer-close" onClick={() => setShowLinksDrawer(false)}>
+              <X size={16} strokeWidth={1.75} />
+            </button>
+          </div>
+          <div className="links-drawer-list">
+            {linksList.length === 0 ? (
+              <span className="links-drawer-empty">Nenhum item adicionado ao workspace.</span>
+            ) : (
+              linksList.map((item) => (
+                <div key={item.id} className="links-drawer-item" onClick={() => focusObject(item.ref)}>
+                  <div className="links-drawer-info">
+                    <span className="links-drawer-name" title={item.meta.source}>
+                      {item.meta.source}
+                    </span>
+                    <div className="links-drawer-meta">
+                      <span>{item.meta.type}</span>
+                      <span>·</span>
+                      <span>{item.meta.size}</span>
+                    </div>
+                  </div>
+                  <div className="links-drawer-actions" onClick={(e) => e.stopPropagation()}>
+                    {item.meta.source.startsWith('http') && (
+                      <a href={item.meta.source} target="_blank" rel="noreferrer" className="links-action-btn" title="Abrir Link Original">
+                        <ExternalLink size={12} strokeWidth={1.75} />
+                      </a>
+                    )}
+                    <button className="links-action-btn" title="Copiar Link/Nome"
+                      onClick={() => {
+                        navigator.clipboard.writeText(item.meta.source);
+                        alert('Link copiado!');
+                      }}>
+                      <Info size={12} strokeWidth={1.75} />
+                    </button>
+                    <button className="links-action-btn delete" title="Excluir Objeto"
+                      onClick={() => {
+                        const fc = fabricRef.current;
+                        if (fc) {
+                          fc.remove(item.ref);
+                          fc.discardActiveObject();
+                          fc.renderAll();
+                        }
+                      }}>
+                      <Trash2 size={12} strokeWidth={1.75} />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}
