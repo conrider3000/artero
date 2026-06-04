@@ -1345,21 +1345,28 @@ export default function App() {
                       <Save size={18} className="feature-icon" />
                       <div className="feature-details">
                         <span className="feature-name">Auto-salvamento em Cache</span>
-                        <span className="feature-desc">Seu progresso é salvo no IndexedDB local de forma silenciosa e resiliente (sem limites de 5MB).</span>
+                        <span className="feature-desc">Seu progresso é salvo no IndexedDB local de forma silenciosa e resiliente.</span>
+                      </div>
+                    </div>
+                    <div className="onboarding-feature-item">
+                      <ImagePlus size={18} className="feature-icon" />
+                      <div className="feature-details">
+                        <span className="feature-name">Exportar Imagens (PNG / JPG)</span>
+                        <span className="feature-desc">Salve como PNG transparente ou JPG preenchido com a cor de fundo da sua prancheta.</span>
                       </div>
                     </div>
                     <div className="onboarding-feature-item">
                       <FileText size={18} className="feature-icon" />
                       <div className="feature-details">
-                        <span className="feature-name">Exportação de Imagens e PDF</span>
-                        <span className="feature-desc">Salve em PNG, JPG ou gere PDFs em tamanhos de papel padronizados (A2, A3, A4, A5) ou original.</span>
+                        <span className="feature-name">Exportar PDF Vetorial</span>
+                        <span className="feature-desc">Gere PDFs de alta qualidade no tamanho original da prancheta ou em formatos padrão (A2 a A5).</span>
                       </div>
                     </div>
                     <div className="onboarding-feature-item">
                       <FileJson size={18} className="feature-icon" />
                       <div className="feature-details">
                         <span className="feature-name">Salvar Arquivo Aberto (JSON)</span>
-                        <span className="feature-desc">Salve um arquivo editável local para compartilhar ou carregar seu moodboard de volta.</span>
+                        <span className="feature-desc">Gere um arquivo editável local `.json` para salvar ou carregar seu moodboard de volta.</span>
                       </div>
                     </div>
                   </div>
