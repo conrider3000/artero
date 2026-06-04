@@ -1050,6 +1050,7 @@ export default function App() {
       >
         <span className="app-title-bold">Artero</span>
         <span className="app-title-beta">Open Beta</span>
+        <span className="app-title-v1-pill">V1</span>
       </button>
 
       {/* ═══════════════════════════════════════════════
