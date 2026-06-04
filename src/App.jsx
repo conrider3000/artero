@@ -1048,7 +1048,6 @@ export default function App() {
         title="Apresentação e Guia (Onboarding)"
         onClick={() => { setShowOnboarding(true); setActiveOnboardingSlide(0); }}
       >
-        <span className="app-title-v1-pill">V1</span>
         <span className="app-title-bold">Artero</span>
         <span className="app-title-beta">Open Beta</span>
       </button>
