@@ -1288,9 +1288,9 @@ export default function App() {
                   </p>
                 </div>
 
-                {/* Slide 2: Recursos */}
+                {/* Slide 2: Inserção Rápida */}
                 <div className="onboarding-slide">
-                  <h2 className="onboarding-title">Ferramentas & Interação</h2>
+                  <h2 className="onboarding-title">Inserção Rápida</h2>
                   <div className="onboarding-features-list">
                     <div className="onboarding-feature-item">
                       <ImagePlus size={18} className="feature-icon" />
@@ -1306,17 +1306,38 @@ export default function App() {
                         <span className="feature-desc">Copie qualquer imagem externa e use Ctrl+V para colá-la direto na prancheta.</span>
                       </div>
                     </div>
+                  </div>
+                </div>
+
+                {/* Slide 3: Organização & Edição */}
+                <div className="onboarding-slide">
+                  <h2 className="onboarding-title">Organização & Edição</h2>
+                  <div className="onboarding-features-list">
                     <div className="onboarding-feature-item">
                       <LayoutGrid size={18} className="feature-icon" />
                       <div className="feature-details">
-                        <span className="feature-name">Smart Grid & Modo P&B</span>
-                        <span className="feature-desc">Organize imagens instantaneamente com Smart Grid ou mude fotos para monocromático (Preto e Branco).</span>
+                        <span className="feature-name">Grid de Auto-organização (Smart Grid)</span>
+                        <span className="feature-desc">Organize todas as imagens em fileiras alinhadas instantaneamente com um clique.</span>
+                      </div>
+                    </div>
+                    <div className="onboarding-feature-item">
+                      <Contrast size={18} className="feature-icon" />
+                      <div className="feature-details">
+                        <span className="feature-name">Modo Preto e Branco (Monocromático)</span>
+                        <span className="feature-desc">Selecione uma imagem e clique no botão de contraste para deixá-la monocromática.</span>
+                      </div>
+                    </div>
+                    <div className="onboarding-feature-item">
+                      <Link size={18} className="feature-icon" />
+                      <div className="feature-details">
+                        <span className="feature-name">Painel de Links & Referências</span>
+                        <span className="feature-desc">Veja metadados, copie links originais, aplique filtros ou delete itens de forma reativa pela Sidebar.</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Slide 3: Salvamento e Exportação */}
+                {/* Slide 4: Salvar & Exportar */}
                 <div className="onboarding-slide">
                   <h2 className="onboarding-title">Salvar & Exportar</h2>
                   <div className="onboarding-features-list">
@@ -1356,7 +1377,7 @@ export default function App() {
               </button>
 
               <div className="onboarding-dots">
-                {[0, 1, 2].map((idx) => (
+                {[0, 1, 2, 3].map((idx) => (
                   <button 
                     key={idx} 
                     className={`onboarding-dot${activeOnboardingSlide === idx ? ' is-active' : ''}`}
@@ -1366,7 +1387,7 @@ export default function App() {
                 ))}
               </div>
 
-              {activeOnboardingSlide < 2 ? (
+              {activeOnboardingSlide < 3 ? (
                 <button 
                   className="onboarding-nav-btn fill" 
                   onClick={() => setActiveOnboardingSlide(s => s + 1)}
