@@ -3,7 +3,7 @@ import * as fabric from 'fabric';
 import {
   ImagePlus, MousePointer2, ZoomIn, ZoomOut, Save, X,
   ExternalLink, Download, FileText, Info, FileJson,
-  Minus, Plus, Link, Undo2, Redo2, Trash2
+  Minus, Plus, Link, Undo2, Redo2, Trash2, Contrast, LayoutGrid
 } from 'lucide-react';
 import { HexColorPicker } from 'react-colorful';
 import { jsPDF } from 'jspdf';
@@ -19,6 +19,67 @@ const loadHeic2Any = () => {
     script.onerror = (e) => reject(new Error('Erro ao carregar heic2any: ' + e.message));
     document.head.appendChild(script);
   });
+};
+
+// ── Carregador dinâmico do gifler (GIFs Animados) ─────────────────────────────
+const loadGifler = () => {
+  if (window.gifler) return Promise.resolve(window.gifler);
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/gifler@0.1.0/gifler.min.js';
+    script.onload = () => resolve(window.gifler);
+    script.onerror = (e) => reject(new Error('Erro ao carregar gifler: ' + e.message));
+    document.head.appendChild(script);
+  });
+};
+
+// ── Utilitários nativos do IndexedDB para Autosave (evita estouro de 5MB) ──────
+const DB_NAME = 'ArteroDB';
+const STORE_NAME = 'autosave';
+
+const getDB = () => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME);
+      }
+    };
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => reject(e.target.error);
+  });
+};
+
+const saveToDB = async (key, val) => {
+  try {
+    const db = await getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.put(val, key);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  } catch (e) {
+    console.error("IndexedDB Save Error:", e);
+  }
+};
+
+const getFromDB = async (key) => {
+  try {
+    const db = await getDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.get(key);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  } catch (e) {
+    console.error("IndexedDB Get Error:", e);
+    return null;
+  }
 };
 
 // ── Identificador de arquivos de imagem (inclui HEIC) ───────────────────────
@@ -107,6 +168,7 @@ export default function App() {
   const [linksList, setLinksList] = useState([]);
   const [showLinksDrawer, setShowLinksDrawer] = useState(false);
   const [hasSelection, setHasSelection] = useState(false);
+  const [isGrayscaleActive, setIsGrayscaleActive] = useState(false);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
 
@@ -114,10 +176,13 @@ export default function App() {
   const undoStack = useRef([]);
   const redoStack = useRef([]);
   const isApplyingHistory = useRef(false);
+  const hasUnsavedChangesRef = useRef(false);
 
   // ── Sincroniza refs ───────────────────────────────────────────────────────
+  const artboardColorRef = useRef(artboardColor);
   useEffect(() => { virtualWRef.current = virtualW; }, [virtualW]);
   useEffect(() => { virtualHRef.current = virtualH; }, [virtualH]);
+  useEffect(() => { artboardColorRef.current = artboardColor; }, [artboardColor]);
 
   // ── Aplica tema ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -128,7 +193,7 @@ export default function App() {
   const saveHistory = useCallback(() => {
     const fc = fabricRef.current;
     if (!fc || isApplyingHistory.current) return;
-    const json = fc.toJSON(['meta']);
+    const json = fc.toJSON(['meta', 'isGrayscale', 'id']);
     
     // Evita salvar estado duplicado consecutivamente
     if (undoStack.current.length > 0) {
@@ -141,6 +206,14 @@ export default function App() {
     redoStack.current = []; // limpa o redo stack em novas ações
     setCanUndo(undoStack.current.length > 1);
     setCanRedo(false);
+
+    // Salva automaticamente no IndexedDB
+    saveToDB('artero_autosave', {
+      canvas: json,
+      sheetSize: { width: virtualWRef.current, height: virtualHRef.current },
+      artboardColor: artboardColorRef.current
+    });
+    hasUnsavedChangesRef.current = true;
   }, []);
 
   const handleUndo = useCallback(() => {
@@ -148,17 +221,35 @@ export default function App() {
     if (!fc || undoStack.current.length <= 1) return;
 
     isApplyingHistory.current = true;
-    const current = fc.toJSON(['meta']);
+    const current = fc.toJSON(['meta', 'isGrayscale', 'id']);
     redoStack.current.push(current);
 
     undoStack.current.pop(); // remove o atual
     const previous = undoStack.current[undoStack.current.length - 1];
 
     fc.loadFromJSON(previous).then(() => {
+      // Restaurar filtros nos objetos após carregar o estado
+      fc.getObjects().forEach(obj => {
+        if (obj.get('isGrayscale')) {
+          obj.filters = [new fabric.FabricImage.filters.Grayscale()];
+          obj.applyFilters();
+        } else {
+          obj.filters = [];
+          obj.applyFilters();
+        }
+      });
       fc.renderAll();
       isApplyingHistory.current = false;
       setCanUndo(undoStack.current.length > 1);
       setCanRedo(true);
+      
+      // Atualiza autosave
+      saveToDB('artero_autosave', {
+        canvas: previous,
+        sheetSize: { width: virtualWRef.current, height: virtualHRef.current },
+        artboardColor: artboardColorRef.current
+      });
+      hasUnsavedChangesRef.current = true;
     }).catch(err => {
       console.error(err);
       isApplyingHistory.current = false;
@@ -171,14 +262,32 @@ export default function App() {
 
     isApplyingHistory.current = true;
     const next = redoStack.current.pop();
-    const current = fc.toJSON(['meta']);
+    const current = fc.toJSON(['meta', 'isGrayscale', 'id']);
     undoStack.current.push(current);
 
     fc.loadFromJSON(next).then(() => {
+      // Restaurar filtros nos objetos após carregar o estado
+      fc.getObjects().forEach(obj => {
+        if (obj.get('isGrayscale')) {
+          obj.filters = [new fabric.FabricImage.filters.Grayscale()];
+          obj.applyFilters();
+        } else {
+          obj.filters = [];
+          obj.applyFilters();
+        }
+      });
       fc.renderAll();
       isApplyingHistory.current = false;
       setCanUndo(true);
       setCanRedo(redoStack.current.length > 0);
+
+      // Atualiza autosave
+      saveToDB('artero_autosave', {
+        canvas: next,
+        sheetSize: { width: virtualWRef.current, height: virtualHRef.current },
+        artboardColor: artboardColorRef.current
+      });
+      hasUnsavedChangesRef.current = true;
     }).catch(err => {
       console.error(err);
       isApplyingHistory.current = false;
@@ -243,7 +352,9 @@ export default function App() {
   const updateSelection = useCallback(() => {
     const fc = fabricRef.current;
     if (!fc) return;
-    setHasSelection(!!fc.getActiveObject());
+    const active = fc.getActiveObject();
+    setHasSelection(!!active);
+    setIsGrayscaleActive(active ? !!active.get('isGrayscale') : false);
   }, []);
 
   // ── Excluir objeto selecionado ──────────────────────────────────────────
@@ -386,7 +497,127 @@ export default function App() {
   useEffect(() => {
     handleImageLoadedRef.current = handleImageLoaded;
   }, [handleImageLoaded]);
+  const placeGif = useCallback(async (url, name, size = null) => {
+    const fc = fabricRef.current;
+    if (!fc) return;
+    try {
+      const giflerLib = await loadGifler();
+      const canvasBuffer = document.createElement('canvas');
+      let fabricImage = null;
+      let isFirstFrame = true;
+      
+      giflerLib(url).frames(canvasBuffer, (ctx, frame) => {
+        if (canvasBuffer.width !== frame.width || canvasBuffer.height !== frame.height) {
+          canvasBuffer.width = frame.width;
+          canvasBuffer.height = frame.height;
+        }
+        ctx.clearRect(0, 0, frame.width, frame.height);
+        ctx.drawImage(frame.buffer, 0, 0);
+        
+        if (isFirstFrame) {
+          isFirstFrame = false;
+          fabricImage = new fabric.FabricImage(canvasBuffer);
+          handleImageLoaded(fabricImage, name, 'image/gif', size);
+        } else if (fabricImage) {
+          if (fabricImage.width !== canvasBuffer.width || fabricImage.height !== canvasBuffer.height) {
+            fabricImage.set({
+              width: canvasBuffer.width,
+              height: canvasBuffer.height
+            });
+          }
+          fabricImage.set({ dirty: true });
+          fabricRef.current?.requestRenderAll();
+        }
+      }, true);
+    } catch (e) {
+      console.error("Erro ao carregar GIF:", e);
+    }
+  }, [handleImageLoaded]);
 
+  const toggleGrayscale = useCallback((obj) => {
+    if (!obj) return;
+    const fc = fabricRef.current;
+    if (!fc) return;
+
+    const hasFilter = obj.filters.some(f => f instanceof fabric.FabricImage.filters.Grayscale);
+    if (hasFilter) {
+      obj.filters = obj.filters.filter(f => !(f instanceof fabric.FabricImage.filters.Grayscale));
+      obj.set('isGrayscale', false);
+    } else {
+      const grayscaleFilter = new fabric.FabricImage.filters.Grayscale();
+      obj.filters.push(grayscaleFilter);
+      obj.set('isGrayscale', true);
+    }
+
+    obj.applyFilters();
+    fc.requestRenderAll();
+    saveHistory();
+    updateLinksList();
+    
+    if (fc.getActiveObject() === obj) {
+      setIsGrayscaleActive(!!obj.get('isGrayscale'));
+    }
+  }, [saveHistory, updateLinksList]);
+
+  const packObjects = useCallback(() => {
+    const fc = fabricRef.current;
+    if (!fc) return;
+    const objs = fc.getObjects().filter(o => o.get('meta'));
+    if (objs.length === 0) return;
+
+    const padding = 30;
+    const maxRowW = virtualWRef.current * 0.8;
+    const startX = virtualWRef.current * 0.1;
+    const startY = virtualHRef.current * 0.1;
+
+    let curX = startX;
+    let curY = startY;
+    let rowH = 0;
+
+    fc.discardActiveObject();
+
+    objs.forEach((obj) => {
+      const w = obj.width * obj.scaleX;
+      const h = obj.height * obj.scaleY;
+
+      if (curX + w > startX + maxRowW && curX > startX) {
+        curY += rowH + padding;
+        curX = startX;
+        rowH = 0;
+      }
+
+      const startLeft = obj.left;
+      const startTop = obj.top;
+      const targetLeft = curX;
+      const targetTop = curY;
+
+      fabric.util.animate({
+        startValue: 0,
+        endValue: 1,
+        duration: 500,
+        easing: fabric.util.ease.easeInOutCubic,
+        onChange: (v) => {
+          obj.set({
+            left: startLeft + (targetLeft - startLeft) * v,
+            top: startTop + (targetTop - startTop) * v
+          });
+          fc.requestRenderAll();
+        }
+      });
+
+      rowH = Math.max(rowH, h);
+      curX += w + padding;
+    });
+
+    const totalRequiredH = curY + rowH + virtualHRef.current * 0.1;
+    if (totalRequiredH > virtualHRef.current) {
+      setVirtualH(Math.round(totalRequiredH));
+    }
+
+    saveHistory();
+  }, [saveHistory]);
+  // ════════════════════════════════════════════════════════════════════════
+  // Inicialização do canvas (uma única vez)
   // ════════════════════════════════════════════════════════════════════════
   // Inicialização do canvas (uma única vez)
   // ════════════════════════════════════════════════════════════════════════
@@ -400,12 +631,47 @@ export default function App() {
     });
     fabricRef.current = fc;
 
-    // Salva o estado de inicialização na pilha de Undo
-    saveHistory();
+    // Carrega o autosave do IndexedDB
+    getFromDB('artero_autosave').then((saved) => {
+      if (saved && saved.canvas) {
+        setVirtualW(saved.sheetSize.width);
+        setVirtualH(saved.sheetSize.height);
+        virtualWRef.current = saved.sheetSize.width;
+        virtualHRef.current = saved.sheetSize.height;
+        setArtboardColor(saved.artboardColor);
+        artboardColorRef.current = saved.artboardColor;
 
-    // Centraliza inicial
-    const z = centerAndFit();
-    setZoomLevel(z);
+        fc.loadFromJSON(saved.canvas).then(() => {
+          // Restaurar os filtros nas imagens carregadas
+          fc.getObjects().forEach(obj => {
+            if (obj.get('isGrayscale')) {
+              obj.filters = [new fabric.FabricImage.filters.Grayscale()];
+              obj.applyFilters();
+            }
+          });
+          fc.renderAll();
+          updateLinksList();
+          
+          undoStack.current = [saved.canvas];
+          setCanUndo(false);
+          setCanRedo(false);
+
+          setTimeout(() => {
+            const z = centerAndFit();
+            setZoomLevel(z);
+          }, 100);
+        });
+      } else {
+        saveHistory();
+        const z = centerAndFit();
+        setZoomLevel(z);
+      }
+    }).catch(err => {
+      console.error("Erro ao carregar autosave:", err);
+      saveHistory();
+      const z = centerAndFit();
+      setZoomLevel(z);
+    });
 
     // ── Eventos do Fabric.js para histórico e reatividade ────────────────
     fc.on('object:added', () => {
@@ -459,7 +725,6 @@ export default function App() {
 
       const w = virtualWRef.current;
       const h = virtualHRef.current;
-      // Zoom mínimo permitindo visualizar a prancheta de longe
       const minZ = Math.min((window.innerWidth - 80) / w, (window.innerHeight - 130) / h) * 0.1;
       let z = Math.max(minZ, Math.min(20, fc.getZoom() * (0.999 ** opt.e.deltaY)));
 
@@ -481,19 +746,16 @@ export default function App() {
       const isInputActive = document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA';
       if (isInputActive) return;
 
-      // Delete ou Backspace deletam o objeto ativo
       if ((e.key === 'Delete' || e.key === 'Backspace') && activeObject) {
         e.preventDefault();
         handleDeleteSelected();
       }
 
-      // Ctrl + Z ou Cmd + Z (Undo)
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
         e.preventDefault();
         handleUndo();
       }
 
-      // Ctrl + Shift + Z ou Cmd + Shift + Z / Ctrl + Y (Redo)
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z') {
         e.preventDefault();
         handleRedo();
@@ -522,7 +784,13 @@ export default function App() {
           try {
             const processed = await processImageFile(f);
             const r = new FileReader();
-            r.onload = (ev) => placeImg(ev.target.result, processed.name, processed.type, processed.size);
+            r.onload = (ev) => {
+              if (processed.type === 'image/gif') {
+                placeGif(ev.target.result, processed.name, processed.size);
+              } else {
+                placeImg(ev.target.result, processed.name, processed.type, processed.size);
+              }
+            };
             r.readAsDataURL(processed.blob);
           } catch (err) {
             console.error("Falha ao processar arquivo dropado:", err);
@@ -534,7 +802,11 @@ export default function App() {
         || e.dataTransfer.getData('text/uri-list')
         || e.dataTransfer.getData('text/plain');
       if (url && (url.startsWith('http') || url.startsWith('data:image'))) {
-        placeImg(url, url, 'image/web');
+        if (url.toLowerCase().includes('.gif') || url.startsWith('data:image/gif')) {
+          placeGif(url, url);
+        } else {
+          placeImg(url, url, 'image/web');
+        }
         return;
       }
       const html = e.dataTransfer.getData('text/html');
@@ -542,20 +814,67 @@ export default function App() {
         const doc = new DOMParser().parseFromString(html, 'text/html');
         const img = doc.querySelector('img');
         const src = img ? (img.getAttribute('src') || img.getAttribute('data-src') || img.getAttribute('srcset')?.split(' ')[0]) : null;
-        if (src) placeImg(src, src, 'image/web');
+        if (src) {
+          if (src.toLowerCase().includes('.gif') || src.startsWith('data:image/gif')) {
+            placeGif(src, src);
+          } else {
+            placeImg(src, src, 'image/web');
+          }
+        }
       }
     };
 
     window.addEventListener('drop', onDrop);
     window.addEventListener('dragover', (e) => e.preventDefault());
 
+    // ── Colar da Área de Transferência (Ctrl+V) ───────────────────────────
+    const onPaste = async (e) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.indexOf('image') !== -1) {
+          const file = item.getAsFile();
+          if (file) {
+            try {
+              const processed = await processImageFile(file);
+              const r = new FileReader();
+              r.onload = (ev) => {
+                if (processed.type === 'image/gif') {
+                  placeGif(ev.target.result, processed.name, processed.size);
+                } else {
+                  placeImg(ev.target.result, processed.name, processed.type, processed.size);
+                }
+              };
+              r.readAsDataURL(processed.blob);
+            } catch (err) {
+              console.error("Erro ao colar imagem:", err);
+            }
+          }
+        }
+      }
+    };
+    window.addEventListener('paste', onPaste);
+
+    // ── Prevenção de Saída ────────────────────────────────────────────────
+    const handleBeforeUnload = (e) => {
+      if (hasUnsavedChangesRef.current) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
     return () => {
       window.removeEventListener('resize', onResize);
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('drop', onDrop);
+      window.removeEventListener('paste', onPaste);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
       fc.dispose();
     };
-  }, [centerAndFit, handleDeleteSelected, handleUndo, handleRedo, saveHistory, updateSelection, updateLinksList]);
+  }, [centerAndFit, handleDeleteSelected, handleUndo, handleRedo, saveHistory, updateSelection, updateLinksList, placeGif]);
 
   // ── Tamanho da prancheta virtual ──────────────────────────────────────────
   useEffect(() => {
@@ -582,9 +901,13 @@ export default function App() {
         const processed = await processImageFile(file);
         const reader = new FileReader();
         reader.onload = (ev) => {
-          fabric.FabricImage.fromURL(ev.target.result).then((img) => {
-            handleImageLoaded(img, processed.name, processed.type, processed.size);
-          });
+          if (processed.type === 'image/gif') {
+            placeGif(ev.target.result, processed.name, processed.size);
+          } else {
+            fabric.FabricImage.fromURL(ev.target.result).then((img) => {
+              handleImageLoaded(img, processed.name, processed.type, processed.size);
+            });
+          }
         };
         reader.readAsDataURL(processed.blob);
       } catch (err) {
@@ -615,7 +938,6 @@ export default function App() {
       z = Math.round((currentZoom - 0.1) * 10) / 10;
     }
     const w = virtualWRef.current, h = virtualHRef.current;
-    // zoom mínimo permitindo ver a prancheta inteira
     const minZ = Math.min((window.innerWidth - 80) / w, (window.innerHeight - 130) / h) * 0.1;
     z = Math.max(minZ, Math.min(20, z));
     const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
@@ -624,19 +946,17 @@ export default function App() {
     setZoomLevel(z);
   };
 
-  const getArtboardDataURL = () => {
+  const getArtboardDataURL = (format = 'png') => {
     const fc = fabricRef.current;
     if (!fc) return null;
     const active = fc.getActiveObject();
     fc.discardActiveObject();
 
-    // Temporariamente aplica a cor no fundo do canvas para que a imagem exportada não fique transparente
     const origBg = fc.backgroundColor;
     fc.backgroundColor = artboardColor;
 
-    // A prancheta virtual está em (0,0) nas coordenadas do mundo, então exportamos a partir daí.
     const data = fc.toDataURL({
-      format: 'png',
+      format: format === 'jpg' ? 'jpeg' : 'png',
       left: 0, top: 0,
       width: virtualWRef.current,
       height: virtualHRef.current,
@@ -650,33 +970,56 @@ export default function App() {
   };
 
   const handleExportPNG = () => {
-    const data = getArtboardDataURL();
+    const data = getArtboardDataURL('png');
     if (!data) return;
     Object.assign(document.createElement('a'), {
       download: `artero-${Date.now()}.png`, href: data,
     }).click();
     setShowSaveMenu(false);
+    hasUnsavedChangesRef.current = false;
+  };
+
+  const handleExportJPG = () => {
+    const data = getArtboardDataURL('jpg');
+    if (!data) return;
+    Object.assign(document.createElement('a'), {
+      download: `artero-${Date.now()}.jpg`, href: data,
+    }).click();
+    setShowSaveMenu(false);
+    hasUnsavedChangesRef.current = false;
   };
 
   const handleExportPDF = (fmt = 'a4') => {
-    const data = getArtboardDataURL();
+    const data = getArtboardDataURL('png');
     if (!data) return;
+    
+    const isOriginal = fmt.toLowerCase() === 'original';
+    let formatOption = fmt.toLowerCase();
+    
+    if (isOriginal) {
+      const mmPerPx = 0.264583;
+      formatOption = [virtualW * mmPerPx, virtualH * mmPerPx];
+    }
+
     const doc = new jsPDF({
       orientation: virtualW > virtualH ? 'landscape' : 'portrait',
-      unit: 'mm', format: fmt.toLowerCase(),
+      unit: 'mm',
+      format: formatOption,
     });
+
     doc.addImage(data, 'PNG', 0, 0,
       doc.internal.pageSize.getWidth(),
       doc.internal.pageSize.getHeight()
     );
-    doc.save(`artero-${fmt}-${Date.now()}.pdf`);
+    doc.save(`artero-${fmt.toLowerCase()}-${Date.now()}.pdf`);
     setShowPdfSizes(false);
     setShowSaveMenu(false);
+    hasUnsavedChangesRef.current = false;
   };
 
   const handleSaveJSON = () => {
     if (!fabricRef.current) return;
-    const json = fabricRef.current.toJSON(['meta']);
+    const json = fabricRef.current.toJSON(['meta', 'isGrayscale', 'id']);
     json.sheetSize = { width: virtualW, height: virtualH };
     json.artboardColor = artboardColor;
     const a = document.createElement('a');
@@ -684,22 +1027,25 @@ export default function App() {
     a.href = URL.createObjectURL(new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' }));
     a.click();
     setShowSaveMenu(false);
+    hasUnsavedChangesRef.current = false;
   };
 
   const getMeta = () =>
     fabricRef.current?.getObjects().filter(o => o.get('meta')).map(o => o.get('meta')) ?? [];
 
-  // ════════════════════════════════════════════════════════════════════════
-  // JSX
-  // ════════════════════════════════════════════════════════════════════════
   return (
     <div className="app-root" style={{ backgroundColor: artboardColor }}>
+
+      {/* ── Título no Canto Superior Direito (Painel Flutuante) ── */}
+      <div className="panel-title mat">
+        <span className="app-title-bold">Artero</span>
+        <span className="app-title-beta">Open Beta</span>
+      </div>
 
       {/* Canvas Fabric.js */}
       <div className="canvas-wrap">
         <canvas ref={canvasRef} />
       </div>
-
 
       {/* ═══════════════════════════════════════════════
           TOOLBAR CENTRAL — ferramentas principais
@@ -713,6 +1059,10 @@ export default function App() {
 
         <button className="icon-btn" title="Adicionar imagem" onClick={handleAddImage}>
           <ImagePlus size={18} strokeWidth={1.75} />
+        </button>
+
+        <button className="icon-btn" title="Auto-Organizar Imagens (Smart Grid)" onClick={packObjects}>
+          <LayoutGrid size={18} strokeWidth={1.75} />
         </button>
 
         <div className="bar-sep" />
@@ -899,6 +1249,10 @@ export default function App() {
                     </div>
                   </div>
                   <div className="links-drawer-actions" onClick={(e) => e.stopPropagation()}>
+                    <button className="links-action-btn" title="Alternar Preto e Branco"
+                      onClick={() => toggleGrayscale(item.ref)}>
+                      <Contrast size={12} strokeWidth={1.75} style={{ color: item.ref.get('isGrayscale') ? 'var(--blue)' : 'var(--label-2)' }} />
+                    </button>
                     {item.meta.source.startsWith('http') && (
                       <a href={item.meta.source} target="_blank" rel="noreferrer" className="links-action-btn" title="Abrir Link Original">
                         <ExternalLink size={12} strokeWidth={1.75} />
