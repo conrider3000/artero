@@ -204,8 +204,15 @@ export default function App() {
     const screenW = window.innerWidth;
     const screenH = window.innerHeight;
 
-    // 1. Zoom a aplicar (fit zoom com margens elegantes)
-    const zoom = optZoom ?? Math.min((screenW - 80) / w, (screenH - 130) / h);
+    // 1. Zoom a aplicar (fit zoom com margens elegantes, exceto se coincidir com o tamanho da tela)
+    let zoom = optZoom;
+    if (zoom === undefined) {
+      if (w === screenW && h === screenH) {
+        zoom = 1.0;
+      } else {
+        zoom = Math.min((screenW - 80) / w, (screenH - 130) / h);
+      }
+    }
 
     // 2. Translação ideal para centralização absoluta
     const tx = (screenW / 2) - (w / 2) * zoom;
