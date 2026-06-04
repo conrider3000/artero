@@ -1281,12 +1281,11 @@ export default function App() {
                   </div>
                   <h2 className="onboarding-title">Sua Prancheta Visual Minimalista</h2>
                   <p className="onboarding-desc">
-                    O Artero é o painel mais simples do mundo para colagem de referências e criação de moodboards. Ele oferece uma tela livre de fricções e distrações para impulsionar seu processo criativo.
+                    O Artero é o painel mais simples do mundo para colagem de referências e criação de moodboards. Ele oferece uma tela infinita e livre de distrações, projetada para manter você focado no seu fluxo criativo.
                   </p>
-                  <div className="onboarding-tip-box">
-                    <span className="onboarding-tip-title">💡 Dica Rápida</span>
-                    <span className="onboarding-tip-desc">Arraste imagens diretamente do seu navegador ou computador e solte-as em qualquer lugar da tela!</span>
-                  </div>
+                  <p className="onboarding-desc" style={{ marginTop: '-12px', fontSize: '13px', color: 'var(--label-3)' }}>
+                    Clique nas bolinhas abaixo ou em Avançar para descobrir como interagir com o canvas.
+                  </p>
                 </div>
 
                 {/* Slide 2: Recursos */}
@@ -1294,24 +1293,24 @@ export default function App() {
                   <h2 className="onboarding-title">Ferramentas & Interação</h2>
                   <div className="onboarding-features-list">
                     <div className="onboarding-feature-item">
-                      <LayoutGrid size={18} className="feature-icon" />
+                      <ImagePlus size={18} className="feature-icon" />
                       <div className="feature-details">
-                        <span className="feature-name">Grid de Auto-organização</span>
-                        <span className="feature-desc">Organize todas as imagens instantaneamente em um layout alinhado com um clique.</span>
-                      </div>
-                    </div>
-                    <div className="onboarding-feature-item">
-                      <Contrast size={18} className="feature-icon" />
-                      <div className="feature-details">
-                        <span className="feature-name">Modo Preto e Branco</span>
-                        <span className="feature-desc">Selecione uma imagem e clique no contraste no menu ou na Sidebar para deixá-la monocromática.</span>
+                        <span className="feature-name">Arrastar & Soltar Global</span>
+                        <span className="feature-desc">Solte fotos da web ou PC. Aceita: PNG, JPG, JPEG, GIF (animado), WEBP, SVG, BMP, TIFF, ICO e HEIC (iPhone).</span>
                       </div>
                     </div>
                     <div className="onboarding-feature-item">
                       <span className="feature-kbd-icon">Ctrl+V</span>
                       <div className="feature-details">
-                        <span className="feature-name">Colagem Direta do Clipboard</span>
+                        <span className="feature-name">Colagem do Clipboard</span>
                         <span className="feature-desc">Copie qualquer imagem externa e use Ctrl+V para colá-la direto na prancheta.</span>
+                      </div>
+                    </div>
+                    <div className="onboarding-feature-item">
+                      <LayoutGrid size={18} className="feature-icon" />
+                      <div className="feature-details">
+                        <span className="feature-name">Smart Grid & Modo P&B</span>
+                        <span className="feature-desc">Organize imagens instantaneamente com Smart Grid ou mude fotos para monocromático (Preto e Branco).</span>
                       </div>
                     </div>
                   </div>
