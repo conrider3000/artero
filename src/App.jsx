@@ -1281,7 +1281,7 @@ export default function App() {
                   </div>
                   <h2 className="onboarding-title">Sua Prancheta Visual Minimalista</h2>
                   <p className="onboarding-desc">
-                    O Artero é o painel mais simples do mundo para colagem de referências e criação de moodboards. Desenhado seguindo as diretrizes HIG da Apple, ele oferece uma tela livre de fricções para seu processo criativo.
+                    O Artero é o painel mais simples do mundo para colagem de referências e criação de moodboards. Ele oferece uma tela livre de fricções e distrações para impulsionar seu processo criativo.
                   </p>
                   <div className="onboarding-tip-box">
                     <span className="onboarding-tip-title">💡 Dica Rápida</span>
