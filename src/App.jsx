@@ -3,7 +3,8 @@ import * as fabric from 'fabric';
 import {
   ImagePlus, MousePointer2, ZoomIn, ZoomOut, Save, X,
   ExternalLink, Download, FileText, Info, FileJson,
-  Minus, Plus, Link, Undo2, Redo2, Trash2, Contrast, LayoutGrid
+  Minus, Plus, Link, Undo2, Redo2, Trash2, Contrast, LayoutGrid,
+  Eraser
 } from 'lucide-react';
 import { HexColorPicker } from 'react-colorful';
 import { jsPDF } from 'jspdf';
@@ -369,6 +370,32 @@ export default function App() {
       fc.renderAll();
     }
   }, []);
+ 
+  // ── Limpar toda a prancheta virtual ──────────────────────────────────────
+  const handleClearCanvas = useCallback(() => {
+    const fc = fabricRef.current;
+    if (!fc) return;
+    const confirmClear = window.confirm("Deseja realmente limpar toda a prancheta? Todas as imagens e referências serão apagadas.");
+    if (confirmClear) {
+      fc.clear();
+      fc.backgroundColor = null;
+      fc.renderAll();
+      
+      saveHistory();
+      updateLinksList();
+      
+      setHasSelection(false);
+      setIsGrayscaleActive(false);
+      
+      setVirtualW(window.innerWidth);
+      setVirtualH(window.innerHeight);
+      
+      setTimeout(() => {
+        const z = centerAndFit();
+        setZoomLevel(z);
+      }, 50);
+    }
+  }, [saveHistory, updateLinksList, centerAndFit]);
 
   // ── Conversor e validador de imagem (Suporte HEIC) ──────────────────────
   const processImageFile = async (file) => {
@@ -1086,6 +1113,11 @@ export default function App() {
         <button className="icon-btn" title="Excluir selecionado (Delete)" onClick={handleDeleteSelected} disabled={!hasSelection}>
           <Trash2 size={18} strokeWidth={1.75} style={{ color: hasSelection ? '#FF3B30' : 'var(--label)', opacity: hasSelection ? 1 : 0.4 }} />
         </button>
+ 
+        {/* Limpar Prancheta */}
+        <button className="icon-btn" title="Limpar toda a prancheta" onClick={handleClearCanvas}>
+          <Eraser size={18} strokeWidth={1.75} style={{ color: 'var(--label)' }} />
+        </button>
 
         {/* Links */}
         <button className={`icon-btn${showLinksDrawer ? ' is-active' : ''}`} title="Painel de Links & Referências" onClick={() => setShowLinksDrawer(d => !d)}>
@@ -1333,6 +1365,13 @@ export default function App() {
                       <div className="feature-details">
                         <span className="feature-name">Painel de Links & Referências</span>
                         <span className="feature-desc">Veja metadados, copie links originais, aplique filtros ou delete itens de forma reativa pela Sidebar.</span>
+                      </div>
+                    </div>
+                    <div className="onboarding-feature-item">
+                      <Eraser size={18} className="feature-icon" />
+                      <div className="feature-details">
+                        <span className="feature-name">Limpar Prancheta (Eraser)</span>
+                        <span className="feature-desc">Apague todo o canvas com um clique. Ação protegida por diálogo de confirmação e suportada por Desfazer (Ctrl+Z).</span>
                       </div>
                     </div>
                   </div>
