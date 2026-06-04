@@ -1035,15 +1035,15 @@ export default function App() {
   return (
     <div className="app-root" style={{ backgroundColor: artboardColor }}>
 
-      {/* ── Título no Canto Superior Direito (Painel Flutuante) ── */}
-      <div className="panel-title mat">
-        <span className="app-title-bold">Artero</span>
-        <span className="app-title-beta">Open Beta</span>
-      </div>
-
       {/* Canvas Fabric.js */}
       <div className="canvas-wrap">
         <canvas ref={canvasRef} />
+      </div>
+
+      {/* ── Título no Canto Superior Esquerdo (Painel Flutuante) ── */}
+      <div className="panel-title mat">
+        <span className="app-title-bold">Artero</span>
+        <span className="app-title-beta">Open Beta</span>
       </div>
 
       {/* ═══════════════════════════════════════════════
