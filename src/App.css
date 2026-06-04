@@ -705,7 +705,6 @@ body {
 
 .onboarding-modal {
   width: 480px;
-  height: 500px;
   border-radius: 24px;
   padding: 32px 32px 24px 32px;
   position: relative;
@@ -714,6 +713,7 @@ body {
   box-shadow: var(--shadow-float);
   animation: scaleInOnboard 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
   overflow: hidden;
+  transition: height 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .onboarding-close-btn {

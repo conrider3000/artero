@@ -671,32 +671,50 @@ export default function App() {
     // Carrega o autosave do IndexedDB
     getFromDB('artero_autosave').then((saved) => {
       if (saved && saved.canvas) {
-        setVirtualW(saved.sheetSize.width);
-        setVirtualH(saved.sheetSize.height);
-        virtualWRef.current = saved.sheetSize.width;
-        virtualHRef.current = saved.sheetSize.height;
         setArtboardColor(saved.artboardColor);
         artboardColorRef.current = saved.artboardColor;
 
         fc.loadFromJSON(saved.canvas).then(() => {
-          // Restaurar os filtros nas imagens carregadas
-          fc.getObjects().forEach(obj => {
-            if (obj.get('isGrayscale')) {
-              obj.filters = [new fabric.FabricImage.filters.Grayscale()];
-              obj.applyFilters();
-            }
-          });
-          fc.renderAll();
-          updateLinksList();
-          
-          undoStack.current = [saved.canvas];
-          setCanUndo(false);
-          setCanRedo(false);
+          const objects = fc.getObjects();
+          if (objects.length === 0) {
+            // Se estiver vazio, redefine para o tamanho da tela do usuário
+            setVirtualW(window.innerWidth);
+            setVirtualH(window.innerHeight);
+            virtualWRef.current = window.innerWidth;
+            virtualHRef.current = window.innerHeight;
+            
+            fc.setViewportTransform([1, 0, 0, 1, 0, 0]);
+            fc.renderAll();
+            setZoomLevel(1);
+            
+            undoStack.current = [saved.canvas];
+            setCanUndo(false);
+            setCanRedo(false);
+          } else {
+            // Restaurar os filtros nas imagens carregadas
+            objects.forEach(obj => {
+              if (obj.get('isGrayscale')) {
+                obj.filters = [new fabric.FabricImage.filters.Grayscale()];
+                obj.applyFilters();
+              }
+            });
+            fc.renderAll();
+            updateLinksList();
+            
+            setVirtualW(saved.sheetSize.width);
+            setVirtualH(saved.sheetSize.height);
+            virtualWRef.current = saved.sheetSize.width;
+            virtualHRef.current = saved.sheetSize.height;
+            
+            undoStack.current = [saved.canvas];
+            setCanUndo(false);
+            setCanRedo(false);
 
-          setTimeout(() => {
-            const z = centerAndFit();
-            setZoomLevel(z);
-          }, 100);
+            setTimeout(() => {
+              const z = centerAndFit();
+              setZoomLevel(z);
+            }, 100);
+          }
         });
       } else {
         saveHistory();
@@ -1310,7 +1328,11 @@ export default function App() {
           ═══════════════════════════════════════════════ */}
       {showOnboarding && (
         <div className="onboarding-overlay" onClick={() => setShowOnboarding(false)}>
-          <div className="onboarding-modal mat" onClick={(e) => e.stopPropagation()}>
+          <div 
+            className="onboarding-modal mat" 
+            onClick={(e) => e.stopPropagation()}
+            style={{ height: `${[340, 380, 480, 480][activeOnboardingSlide]}px` }}
+          >
             <button className="onboarding-close-btn" onClick={() => setShowOnboarding(false)} title="Fechar Onboarding">
               <X size={16} strokeWidth={2} />
             </button>
