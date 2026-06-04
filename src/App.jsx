@@ -1331,7 +1331,7 @@ export default function App() {
           <div 
             className="onboarding-modal mat" 
             onClick={(e) => e.stopPropagation()}
-            style={{ height: `${[340, 380, 480, 480][activeOnboardingSlide]}px` }}
+            style={{ height: `${[340, 380, 480, 480, 410][activeOnboardingSlide]}px` }}
           >
             <button className="onboarding-close-btn" onClick={() => setShowOnboarding(false)} title="Fechar Onboarding">
               <X size={16} strokeWidth={2} />
@@ -1450,6 +1450,35 @@ export default function App() {
                     </div>
                   </div>
                 </div>
+
+                {/* Slide 5: Tela, Zoom & Tema */}
+                <div className="onboarding-slide">
+                  <h2 className="onboarding-title">Tela, Zoom & Tema</h2>
+                  <div className="onboarding-features-list">
+                    <div className="onboarding-feature-item">
+                      <Plus size={18} className="feature-icon" />
+                      <div className="feature-details">
+                        <span className="feature-name">Ajustar Tamanho da Prancheta (+ / -)</span>
+                        <span className="feature-desc">No painel esquerdo, use os botões de mais e menos para expandir ou contrair o tamanho físico (resolução) do seu canvas virtual.</span>
+                      </div>
+                    </div>
+                    <div className="onboarding-feature-item">
+                      <Maximize size={18} className="feature-icon" />
+                      <div className="feature-details">
+                        <span className="feature-name">Ajustar à Tela (Reset de Zoom)</span>
+                        <span className="feature-desc">Centraliza o canvas inteiro e define a escala do zoom para 100% sem margens, adaptando-o perfeitamente ao tamanho da sua tela.</span>
+                      </div>
+                    </div>
+                    <div className="onboarding-feature-item">
+                      <ZoomIn size={18} className="feature-icon" />
+                      <div className="feature-details">
+                        <span className="feature-name">Zoom & Visualização</span>
+                        <span className="feature-desc">Aproxime e afaste a prancheta usando as lupas no canto inferior direito ou a roda do mouse. Altere também o tema entre Claro/Escuro usando o botão de Sol/Lua.</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
               </div>
             </div>
 
@@ -1463,7 +1492,7 @@ export default function App() {
               </button>
 
               <div className="onboarding-dots">
-                {[0, 1, 2, 3].map((idx) => (
+                {[0, 1, 2, 3, 4].map((idx) => (
                   <button 
                     key={idx} 
                     className={`onboarding-dot${activeOnboardingSlide === idx ? ' is-active' : ''}`}
@@ -1473,7 +1502,7 @@ export default function App() {
                 ))}
               </div>
 
-              {activeOnboardingSlide < 3 ? (
+              {activeOnboardingSlide < 4 ? (
                 <button 
                   className="onboarding-nav-btn fill" 
                   onClick={() => setActiveOnboardingSlide(s => s + 1)}
