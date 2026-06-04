@@ -700,14 +700,6 @@ export default function App() {
         <canvas ref={canvasRef} />
       </div>
 
-      {/* ── Botão aparência – canto superior esquerdo ── */}
-      <button
-        className="btn-appearance mat"
-        title={isDark ? 'Modo Dia' : 'Modo Noite'}
-        onClick={() => setIsDark(d => !d)}
-      >
-        {isDark ? '☀️' : '🌙'}
-      </button>
 
       {/* ═══════════════════════════════════════════════
           TOOLBAR CENTRAL — ferramentas principais
@@ -826,6 +818,15 @@ export default function App() {
           PAINEL DIREITO — zoom de visualização
           ═══════════════════════════════════════════════ */}
       <div className="panel-right mat">
+        <button
+          className="icon-btn"
+          title={isDark ? 'Modo Dia' : 'Modo Noite'}
+          onClick={() => setIsDark(d => !d)}
+          style={{ fontSize: '16px' }}
+        >
+          {isDark ? '☀️' : '🌙'}
+        </button>
+        <div className="bar-sep" />
         <button className="icon-btn" title="Zoom −" onClick={() => handleZoom('out')}>
           <ZoomOut size={15} strokeWidth={1.75} />
         </button>
