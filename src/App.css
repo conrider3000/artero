@@ -372,6 +372,18 @@ body {
   opacity: 0.85;
 }
 
+.app-title-v1-pill {
+  background: var(--blue);
+  color: #FFFFFF;
+  padding: 2px 5px;
+  border-radius: 5px;
+  font-size: 7.5px;
+  font-weight: 800;
+  letter-spacing: 0.1px;
+  margin-left: 5px;
+  line-height: 1;
+}
+
 
 /* ═══════════════════════════════════════════════════════════════════════════
    PAINEL REFERÊNCIAS
