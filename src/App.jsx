@@ -200,7 +200,7 @@ export default function App() {
     setLinksList(list);
   }, []);
 
-  // ── Lógica de Focar e Selecionar Objeto pelo Painel ────────────────────────
+  // ── Lógica de Focar e Selecionar Objeto pelo Painel (Transição Suave) ──────
   const focusObject = useCallback((obj) => {
     const fc = fabricRef.current;
     if (!fc || !obj) return;
@@ -209,13 +209,34 @@ export default function App() {
     const screenW = window.innerWidth;
     const screenH = window.innerHeight;
     const objCenter = obj.getCenterPoint();
-    const zoom = fc.getZoom();
 
-    const tx = (screenW / 2) - objCenter.x * zoom;
-    const ty = (screenH / 2) - objCenter.y * zoom;
+    const objW = obj.width * obj.scaleX;
+    const objH = obj.height * obj.scaleY;
+    
+    // Calcula zoom ideal para enquadrar a imagem de forma confortável
+    const targetZoom = Math.min((screenW - 240) / objW, (screenH - 240) / objH, 1.2);
 
-    fc.setViewportTransform([zoom, 0, 0, zoom, tx, ty]);
-    fc.renderAll();
+    const targetTx = (screenW / 2) - objCenter.x * targetZoom;
+    const targetTy = (screenH / 2) - objCenter.y * targetZoom;
+
+    const startVpt = fc.viewportTransform.slice();
+    const targetVpt = [targetZoom, 0, 0, targetZoom, targetTx, targetTy];
+
+    // Transição animada do Viewport para deslizar suavemente até a foto (Apple Style)
+    fabric.util.animate({
+      startValue: 0,
+      endValue: 1,
+      duration: 400,
+      onChange: (value) => {
+        const currentVpt = startVpt.map((start, i) => start + (targetVpt[i] - start) * value);
+        fc.setViewportTransform(currentVpt);
+        fc.requestRenderAll();
+      },
+      onComplete: () => {
+        setZoomLevel(targetZoom);
+        fc.renderAll();
+      }
+    });
   }, []);
 
   // ── Atualização do estado de seleção ──────────────────────────────────────
