@@ -4,7 +4,7 @@ import {
   ImagePlus, MousePointer2, ZoomIn, ZoomOut, Save, X,
   ExternalLink, Download, FileText, Info, FileJson,
   Minus, Plus, Link, Undo2, Redo2, Trash2, Contrast, LayoutGrid,
-  Eraser
+  Eraser, Maximize
 } from 'lucide-react';
 import { HexColorPicker } from 'react-colorful';
 import { jsPDF } from 'jspdf';
@@ -956,6 +956,11 @@ export default function App() {
     setVirtualW(window.innerWidth);
     setVirtualH(window.innerHeight);
   };
+ 
+  const handleResetZoom = useCallback(() => {
+    const z = centerAndFit();
+    setZoomLevel(z);
+  }, [centerAndFit]);
 
   const handleZoom = (direction) => {
     const fc = fabricRef.current;
@@ -1218,6 +1223,9 @@ export default function App() {
         <div className="bar-sep" />
         <button className="icon-btn" title="Zoom −" onClick={() => handleZoom('out')}>
           <ZoomOut size={15} strokeWidth={1.75} />
+        </button>
+        <button className="icon-btn" title="Ajustar à Tela" onClick={handleResetZoom}>
+          <Maximize size={15} strokeWidth={1.75} />
         </button>
         <button className="icon-btn" title="Zoom +" onClick={() => handleZoom('in')}>
           <ZoomIn size={15} strokeWidth={1.75} />
