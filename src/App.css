@@ -511,8 +511,8 @@ body {
    ═══════════════════════════════════════════════════════════════════════════ */
 .links-drawer {
   position: fixed;
-  top: 16px;
-  left: 16px;
+  top: 24px;
+  right: 24px;
   bottom: 88px; /* deixa espaço acima da toolbar central */
   width: 320px;
   border-radius: 20px;
@@ -520,7 +520,7 @@ body {
   display: flex;
   flex-direction: column;
   padding: 16px;
-  animation: slideInLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .links-drawer-header {
@@ -652,8 +652,8 @@ body {
   padding: 24px 0;
 }
 
-/* Animação slideInLeft */
-@keyframes slideInLeft {
-  from { opacity: 0; transform: translateX(-30px); }
+/* Animação slideInRight */
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(30px); }
   to   { opacity: 1; transform: translateX(0); }
 }
