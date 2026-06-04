@@ -186,6 +186,38 @@ export default function App() {
   useEffect(() => { virtualHRef.current = virtualH; }, [virtualH]);
   useEffect(() => { artboardColorRef.current = artboardColor; }, [artboardColor]);
 
+  // ════════════════════════════════════════════════════════════════════════
+  // centerAndFit — GEOMETRIA DA CENTRALIZAÇÃO INFALÍVEL
+  //
+  // Lógica:
+  //   1. Calculamos o zoom ideal para fazer a área de trabalho virtual caber na tela.
+  //   2. Calculamos o deslocamento (tx, ty) para posicionar o centro do
+  //      mundo virtual (virtualW/2, virtualH/2) exatamente no centro da tela.
+  //   3. Aplicamos fc.setViewportTransform([zoom, 0, 0, zoom, tx, ty]).
+  // ════════════════════════════════════════════════════════════════════════
+  const centerAndFit = useCallback((optZoom) => {
+    const fc = fabricRef.current;
+    if (!fc) return 1;
+
+    const w = virtualWRef.current;
+    const h = virtualHRef.current;
+    const screenW = window.innerWidth;
+    const screenH = window.innerHeight;
+
+    // 1. Zoom a aplicar (fit zoom com margens elegantes)
+    const zoom = optZoom ?? Math.min((screenW - 80) / w, (screenH - 130) / h);
+
+    // 2. Translação ideal para centralização absoluta
+    const tx = (screenW / 2) - (w / 2) * zoom;
+    const ty = (screenH / 2) - (h / 2) * zoom;
+
+    // 3. Aplica transformação direta de viewport
+    fc.setViewportTransform([zoom, 0, 0, zoom, tx, ty]);
+    fc.renderAll();
+
+    return zoom;
+  }, []);
+
   // ── Aplica tema ───────────────────────────────────────────────────────────
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
@@ -428,37 +460,7 @@ export default function App() {
     };
   };
 
-  // ════════════════════════════════════════════════════════════════════════
-  // centerAndFit — GEOMETRIA DA CENTRALIZAÇÃO INFALÍVEL
-  //
-  // Lógica:
-  //   1. Calculamos o zoom ideal para fazer a área de trabalho virtual caber na tela.
-  //   2. Calculamos o deslocamento (tx, ty) para posicionar o centro do
-  //      mundo virtual (virtualW/2, virtualH/2) exatamente no centro da tela.
-  //   3. Aplicamos fc.setViewportTransform([zoom, 0, 0, zoom, tx, ty]).
-  // ════════════════════════════════════════════════════════════════════════
-  const centerAndFit = useCallback((optZoom) => {
-    const fc = fabricRef.current;
-    if (!fc) return 1;
 
-    const w = virtualWRef.current;
-    const h = virtualHRef.current;
-    const screenW = window.innerWidth;
-    const screenH = window.innerHeight;
-
-    // 1. Zoom a aplicar (fit zoom com margens elegantes)
-    const zoom = optZoom ?? Math.min((screenW - 80) / w, (screenH - 130) / h);
-
-    // 2. Translação ideal para centralização absoluta
-    const tx = (screenW / 2) - (w / 2) * zoom;
-    const ty = (screenH / 2) - (h / 2) * zoom;
-
-    // 3. Aplica transformação direta de viewport
-    fc.setViewportTransform([zoom, 0, 0, zoom, tx, ty]);
-    fc.renderAll();
-
-    return zoom;
-  }, []);
 
   // ── Callback para carregamento de imagem com a mágica 4x ──────────────────
   const handleImageLoaded = useCallback((img, name, type, size) => {
