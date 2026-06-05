@@ -1897,7 +1897,7 @@ export default function App() {
           <div 
             className="onboarding-modal" 
             onClick={(e) => e.stopPropagation()}
-            style={{ height: `${[380, 420, 440, 520, 440, 480][activeOnboardingSlide]}px` }}
+            style={{ height: `${[380, 420, 440, 560, 440, 480][activeOnboardingSlide]}px` }}
           >
             <button className="onboarding-close-btn" onClick={() => setShowOnboarding(false)} title="Fechar Onboarding">
               <X size={16} strokeWidth={2} />
@@ -2019,7 +2019,7 @@ export default function App() {
                   
                   {/* Bloco 1: Atalhos de Mouse */}
                   <h3 className="onboarding-subtitle" style={{ fontSize: '12px', fontWeight: '700', color: 'var(--blue)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>Atalhos de Mouse</h3>
-                  <div className="onboarding-features-list" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '8px' }}>
+                  <div className="onboarding-features-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '8px' }}>
                     <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
                       <span className="feature-kbd-icon">Mouse Dir</span>
                       <div className="feature-details">
@@ -2055,7 +2055,7 @@ export default function App() {
 
                   {/* Bloco 2: Atalhos de Teclado */}
                   <h3 className="onboarding-subtitle" style={{ fontSize: '12px', fontWeight: '700', color: 'var(--blue)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>Atalhos de Teclado</h3>
-                  <div className="onboarding-features-list" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="onboarding-features-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
                       <span className="feature-kbd-icon">V / H</span>
                       <div className="feature-details">
@@ -2071,17 +2071,10 @@ export default function App() {
                       </div>
                     </div>
                     <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
-                      <span className="feature-kbd-icon">Delete</span>
+                      <span className="feature-kbd-icon">Del / Back</span>
                       <div className="feature-details">
                         <span className="feature-name">Deletar Imagem</span>
-                        <span className="feature-desc">Apague a imagem selecionada usando a tecla Delete.</span>
-                      </div>
-                    </div>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
-                      <span className="feature-kbd-icon">Backsp.</span>
-                      <div className="feature-details">
-                        <span className="feature-name">Deletar Alternativo</span>
-                        <span className="feature-desc">Apague a imagem selecionada usando Backspace.</span>
+                        <span className="feature-desc">Apague a imagem selecionada usando as teclas Delete ou Backspace.</span>
                       </div>
                     </div>
                     <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
