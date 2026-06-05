@@ -198,6 +198,13 @@ export default function App() {
   const isApplyingHistory = useRef(false);
   const hasUnsavedChangesRef = useRef(false);
   const prevZoomLevelRef = useRef(1);
+  const copyTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    };
+  }, []);
 
   // ── Sincroniza refs ───────────────────────────────────────────────────────
   const artboardColorRef = useRef(artboardColor);
@@ -1113,13 +1120,29 @@ export default function App() {
   const toggleBlueprint = () => {
     if (!isBlueprint) {
       setPrevColor(artboardColor);
-      setArtboardColor('#1a3a5c');
+      setArtboardColor('#0041BA');
       setIsBlueprint(true);
     } else {
       setArtboardColor(prevColor);
       setIsBlueprint(false);
     }
   };
+
+  const handleColorChange = useCallback((newColor) => {
+    setArtboardColor(newColor);
+    setIsBlueprint(false);
+    
+    if (copyTimeoutRef.current) {
+      clearTimeout(copyTimeoutRef.current);
+    }
+    copyTimeoutRef.current = setTimeout(() => {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(newColor.toUpperCase()).catch(err => {
+          console.warn('Could not copy color to clipboard:', err);
+        });
+      }
+    }, 200);
+  }, []);
 
   const handleSetActiveTool = useCallback((tool) => {
     setActiveTool(tool);
@@ -1533,7 +1556,7 @@ export default function App() {
           </div>
           {showColorPicker && (
             <div className="color-popover mat">
-              <HexColorPicker color={artboardColor} onChange={(c) => { setArtboardColor(c); setIsBlueprint(false); }} />
+              <HexColorPicker color={artboardColor} onChange={handleColorChange} />
             </div>
           )}
         </div>
@@ -1638,9 +1661,9 @@ export default function App() {
         {/* Botão Maximize reposicionado ANTES do zoom - e chamando handleFitContent */}
         <button
           className="icon-btn"
-          title="Ajustar Conteúdo"
+          title="Magic Zoom"
           onClick={handleFitContent}
-          onContextMenu={(e) => handleRightClickHelp(e, "Ajustar Conteúdo", "Centraliza e ajusta o nível de zoom automaticamente para mostrar todas as imagens presentes na prancheta.")}
+          onContextMenu={(e) => handleRightClickHelp(e, "Magic Zoom", "Centraliza todas as imagens na tela e ajusta o zoom automaticamente para enquadrar todo o conteúdo com uma margem confortável.")}
         >
           <Maximize size={15} strokeWidth={1.75} />
         </button>
@@ -1742,9 +1765,9 @@ export default function App() {
       {showOnboarding && (
         <div className="onboarding-overlay" onClick={() => setShowOnboarding(false)}>
           <div 
-            className="onboarding-modal mat" 
+            className="onboarding-modal" 
             onClick={(e) => e.stopPropagation()}
-            style={{ height: `${[340, 380, 480, 480, 410][activeOnboardingSlide]}px` }}
+            style={{ height: `${[340, 380, 480, 480, 410, 490][activeOnboardingSlide]}px` }}
           >
             <button className="onboarding-close-btn" onClick={() => setShowOnboarding(false)} title="Fechar Onboarding">
               <X size={16} strokeWidth={2} />
@@ -1878,8 +1901,8 @@ export default function App() {
                     <div className="onboarding-feature-item">
                       <Maximize size={18} className="feature-icon" />
                       <div className="feature-details">
-                        <span className="feature-name">Ajustar à Tela (Reset de Zoom)</span>
-                        <span className="feature-desc">Centraliza o canvas inteiro e define a escala do zoom para 100% sem margens, adaptando-o perfeitamente ao tamanho da sua tela.</span>
+                        <span className="feature-name">Magic Zoom (Enquadrar Conteúdo)</span>
+                        <span className="feature-desc">Centraliza todas as imagens na tela e ajusta o zoom automaticamente para enquadrar todo o conteúdo com uma margem confortável.</span>
                       </div>
                     </div>
                     <div className="onboarding-feature-item">

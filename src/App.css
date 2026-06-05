@@ -27,6 +27,8 @@
 
   --shadow:          0 4px 20px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
   --shadow-float:    0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
+  --onboarding-bg:        #FFFFFF;
+  --onboarding-footer-bg: #F2F2F7;
 }
 
 /* ── Modo Escuro ─────────────────────────────────────────────────────────── */
@@ -51,6 +53,8 @@
 
   --shadow:          0 4px 20px rgba(0,0,0,0.45), 0 1px 4px rgba(0,0,0,0.25);
   --shadow-float:    0 8px 32px rgba(0,0,0,0.60), 0 2px 8px rgba(0,0,0,0.40);
+  --onboarding-bg:        #1C1C1E;
+  --onboarding-footer-bg: #2C2C2E;
 }
 
 /* ── Reset ───────────────────────────────────────────────────────────────── */
@@ -706,7 +710,8 @@ body {
 .onboarding-modal {
   width: 480px;
   border-radius: 24px;
-  padding: 32px 32px 24px 32px;
+  background: var(--onboarding-bg);
+  border: 1px solid var(--mat-border);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -714,6 +719,7 @@ body {
   animation: scaleInOnboard 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
   overflow: hidden;
   transition: height 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 0;
 }
 
 .onboarding-close-btn {
@@ -741,7 +747,8 @@ body {
   flex: 1;
   overflow: hidden;
   position: relative;
-  margin-top: 8px;
+  margin-top: 0;
+  padding: 32px 32px 0 32px;
 }
 
 .onboarding-slides-track {
@@ -885,9 +892,10 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 16px;
+  padding: 16px 32px 24px 32px;
   border-top: 1px solid var(--separator);
-  margin-top: 16px;
+  background: var(--onboarding-footer-bg);
+  margin-top: 0;
 }
 
 .onboarding-nav-btn {
@@ -979,7 +987,7 @@ body {
    MODO BLUEPRINT (AZUL DA PRÚSSIA & GRID TÉCNICO)
    ========================================================================= */
 .app-root.is-blueprint {
-  background-color: #1a3a5c !important;
+  background-color: #0041BA !important;
   background-image: 
     linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
