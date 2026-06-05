@@ -1897,7 +1897,7 @@ export default function App() {
           <div 
             className="onboarding-modal" 
             onClick={(e) => e.stopPropagation()}
-            style={{ height: `${[380, 460, 440, 620, 440, 480][activeOnboardingSlide]}px` }}
+            style={{ height: `${[380, 460, 440, 620, 460, 480][activeOnboardingSlide]}px` }}
           >
             <button className="onboarding-close-btn" onClick={() => setShowOnboarding(false)} title="Fechar Onboarding">
               <X size={16} strokeWidth={2} />
@@ -1995,8 +1995,9 @@ export default function App() {
                   <h2 className="onboarding-title">Prancheta & Funções</h2>
                   <div className="onboarding-features-list" style={{ gap: '14px' }}>
                     <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
-                      <div className="feature-icon">
-                        <Maximize size={18} />
+                      <div className="feature-icon" style={{ display: 'flex', gap: '3px', padding: '4px' }}>
+                        <Minus size={11} strokeWidth={2.5} />
+                        <Plus size={11} strokeWidth={2.5} />
                       </div>
                       <div className="feature-details">
                         <span className="feature-name">Redimensionar Prancheta (+ / -)</span>
@@ -2102,6 +2103,15 @@ export default function App() {
                 <div className="onboarding-slide">
                   <h2 className="onboarding-title">Info & Organização</h2>
                   <div className="onboarding-features-list" style={{ gap: '14px' }}>
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
+                      <div className="feature-icon">
+                        <LayoutGrid size={18} />
+                      </div>
+                      <div className="feature-details">
+                        <span className="feature-name">Auto-organização (Smart Grid)</span>
+                        <span className="feature-desc">Organize todas as imagens em fileiras alinhadas instantaneamente com um clique.</span>
+                      </div>
+                    </div>
                     <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
                       <div className="feature-icon">
                         <Maximize size={18} />
