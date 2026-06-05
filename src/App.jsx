@@ -801,9 +801,7 @@ export default function App() {
         fc.defaultCursor = 'grabbing';
         fc.setCursor('grabbing');
       } else {
-        // Clicar e arrastar no fundo faz a caixa de seleção do Fabric (fc.selection = true)
         panning = false;
-        fc.selection = true;
       }
     });
 
@@ -824,20 +822,22 @@ export default function App() {
     });
 
     fc.on('mouse:up', () => {
-      panning = false;
-      isDoubleClickPan = false;
-      
-      const isPanMode = activeToolRef.current === 'pan' || isSpacePressedRef.current;
-      if (isPanMode) {
-        fc.selection = false;
-        fc.defaultCursor = 'grab';
-        fc.setCursor('grab');
-      } else {
-        fc.selection = true;
-        fc.defaultCursor = 'default';
-        fc.setCursor('default');
+      if (panning) {
+        panning = false;
+        isDoubleClickPan = false;
+        
+        const isPanMode = activeToolRef.current === 'pan' || isSpacePressedRef.current;
+        if (isPanMode) {
+          fc.selection = false;
+          fc.defaultCursor = 'grab';
+          fc.setCursor('grab');
+        } else {
+          fc.selection = true;
+          fc.defaultCursor = 'default';
+          fc.setCursor('default');
+        }
+        fc.requestRenderAll();
       }
-      fc.requestRenderAll();
     });
 
     // ── Zoom com scroll relativo ao cursor do mouse ───────────────────────
@@ -845,13 +845,23 @@ export default function App() {
       opt.e.preventDefault();
       opt.e.stopPropagation();
 
-      const w = virtualWRef.current;
-      const h = virtualHRef.current;
-      const minZ = Math.min((window.innerWidth - 80) / w, (window.innerHeight - 130) / h) * 0.1;
-      let z = Math.max(minZ, Math.min(20, fc.getZoom() * (0.999 ** opt.e.deltaY)));
+      const isZoom = opt.e.ctrlKey;
+      
+      if (isZoom) {
+        const w = virtualWRef.current;
+        const h = virtualHRef.current;
+        const minZ = Math.min((window.innerWidth - 80) / w, (window.innerHeight - 130) / h) * 0.1;
+        let z = Math.max(minZ, Math.min(20, fc.getZoom() * (0.999 ** opt.e.deltaY)));
 
-      fc.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, z);
-      setZoomLevel(z);
+        fc.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, z);
+        setZoomLevel(z);
+      } else {
+        const vpt = fc.viewportTransform.slice();
+        vpt[4] -= opt.e.deltaX;
+        vpt[5] -= opt.e.deltaY;
+        fc.setViewportTransform(vpt);
+        fc.requestRenderAll();
+      }
     });
 
     // ── Redimensionamento da janela ────────────────────────────────────────
@@ -1834,6 +1844,58 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* Slide 6: Atalhos & Produtividade */}
+                <div className="onboarding-slide">
+                  <h2 className="onboarding-title">Atalhos & Produtividade</h2>
+                  <div className="onboarding-features-list" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '16px' }}>
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
+                      <span className="feature-kbd-icon">V</span>
+                      <div className="feature-details">
+                        <span className="feature-name">Seleção</span>
+                        <span className="feature-desc" style={{ fontSize: '11px' }}>Ferramenta de Seta. Arraste no fundo para selecionar em janela.</span>
+                      </div>
+                    </div>
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
+                      <span className="feature-kbd-icon">H</span>
+                      <div className="feature-details">
+                        <span className="feature-name">Mão (Pan)</span>
+                        <span className="feature-desc" style={{ fontSize: '11px' }}>Ferramenta de Mãozinha. Clique e arraste para mover a tela.</span>
+                      </div>
+                    </div>
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
+                      <span className="feature-kbd-icon">Space</span>
+                      <div className="feature-details">
+                        <span className="feature-name">Mão Temporária</span>
+                        <span className="feature-desc" style={{ fontSize: '11px' }}>Segure a barra de espaço para Pan rápido. Solte para voltar.</span>
+                      </div>
+                    </div>
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
+                      <span className="feature-kbd-icon">2 Cliques</span>
+                      <div className="feature-details">
+                        <span className="feature-name">Pan por Clique</span>
+                        <span className="feature-desc" style={{ fontSize: '11px' }}>Dois cliques rápidos no fundo para arrastar a tela sem atalhos.</span>
+                      </div>
+                    </div>
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
+                      <span className="feature-kbd-icon">Del / Backspace</span>
+                      <div className="feature-details">
+                        <span className="feature-name">Deletar Imagem</span>
+                        <span className="feature-desc" style={{ fontSize: '11px' }}>Apaga permanentemente a imagem selecionada da prancheta.</span>
+                      </div>
+                    </div>
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
+                      <span className="feature-kbd-icon">Ctrl+Z / Y</span>
+                      <div className="feature-details">
+                        <span className="feature-name">Desfazer/Refazer</span>
+                        <span className="feature-desc" style={{ fontSize: '11px' }}>Desfaça ou refaça suas últimas edições ou auto-organizações.</span>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="onboarding-desc" style={{ marginTop: '16px', fontSize: '12px', color: 'var(--label-3)', textAlign: 'center', lineHeight: '1.4' }}>
+                    💡 <strong>Dica Extra:</strong> Clique no valor de % do Zoom (canto direito) para ir para 100%, ou clique com o <strong>botão direito</strong> em qualquer controle dos painéis flutuantes para ver caixas explicativas!
+                  </p>
+                </div>
+
               </div>
             </div>
 
@@ -1847,7 +1909,7 @@ export default function App() {
               </button>
 
               <div className="onboarding-dots">
-                {[0, 1, 2, 3, 4].map((idx) => (
+                {[0, 1, 2, 3, 4, 5].map((idx) => (
                   <button 
                     key={idx} 
                     className={`onboarding-dot${activeOnboardingSlide === idx ? ' is-active' : ''}`}
@@ -1857,7 +1919,7 @@ export default function App() {
                 ))}
               </div>
 
-              {activeOnboardingSlide < 4 ? (
+              {activeOnboardingSlide < 5 ? (
                 <button 
                   className="onboarding-nav-btn fill" 
                   onClick={() => setActiveOnboardingSlide(s => s + 1)}
