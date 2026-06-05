@@ -746,9 +746,7 @@ body {
 
 .onboarding-content-wrap {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  min-height: 0;
+  overflow: hidden;
   position: relative;
   margin: 0 32px;
   padding-top: 32px;
