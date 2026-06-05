@@ -1113,3 +1113,90 @@ body {
   to { transform: translateY(0); opacity: 1; }
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   PAINEL SUPERIOR DIREITO & ZEN MODE (HIDE UI)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Painel Superior Direito ── */
+.panel-top-right {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 40;
+  height: 52px;
+  padding: 0 16px;
+  border-radius: 26px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--mat);
+  border: 1px solid var(--mat-border);
+  transition: right 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease, transform 0.25s ease;
+  box-shadow: var(--shadow-float);
+}
+
+.panel-top-right.drawer-open {
+  right: 368px; /* Afasta para a esquerda quando a sidebar de links abre */
+}
+
+/* ── Zen Mode (Ocultação Suave de Painéis) ── */
+.panel-title {
+  transition: background 0.15s ease, transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease !important;
+}
+.panel-title.ui-hidden {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateY(-20px) scale(0.95) !important;
+}
+
+.toolbar {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease, background 0.2s ease, box-shadow 0.2s ease !important;
+}
+.toolbar.ui-hidden {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateX(-50%) translateY(30px) scale(0.95) !important;
+}
+
+.panel-left {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease !important;
+}
+.panel-left.ui-hidden {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateY(20px) scale(0.95) !important;
+}
+
+.panel-right {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease !important;
+}
+.panel-right.ui-hidden {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateY(20px) scale(0.95) !important;
+}
+
+.links-drawer {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease !important;
+}
+.links-drawer.ui-hidden {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateX(50px) scale(0.95) !important;
+}
+
+/* ── Responsividade Mobile para Top Right Panel ── */
+@media (max-width: 768px) {
+  .panel-top-right {
+    top: 12px;
+    right: 12px;
+    height: 40px;
+    padding: 0 10px;
+    border-radius: 20px;
+    gap: 8px;
+  }
+  .panel-top-right.drawer-open {
+    right: 12px; /* no mobile, a drawer fica em overlay tela cheia */
+  }
+}
+

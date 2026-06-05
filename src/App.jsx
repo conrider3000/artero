@@ -4,7 +4,7 @@ import {
   ImagePlus, MousePointer2, ZoomIn, ZoomOut, Save, X,
   ExternalLink, Download, FileText, Info, FileJson,
   Minus, Plus, Link, Undo2, Redo2, Trash2, Contrast, LayoutGrid,
-  Eraser, Maximize, Grid, Hand
+  Eraser, Maximize, Grid, Hand, Expand, Shrink, Eye, EyeOff
 } from 'lucide-react';
 import { HexColorPicker } from 'react-colorful';
 import { jsPDF } from 'jspdf';
@@ -162,6 +162,17 @@ export default function App() {
   const activeToolRef = useRef('select');
   useEffect(() => { activeToolRef.current = activeTool; }, [activeTool]);
   const isSpacePressedRef = useRef(false);
+
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isUiHidden, setIsUiHidden] = useState(false);
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+  }, []);
 
   // ── Tema — Inicia sempre em Modo Escuro (Night Mode) ──────────────────────
   const [isDark, setIsDark] = useState(true);
@@ -1138,6 +1149,22 @@ export default function App() {
     fc.requestRenderAll();
   }, []);
 
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().then(() => {
+        setIsFullscreen(true);
+      }).catch(err => {
+        console.error("Erro ao ativar tela inteira:", err);
+      });
+    } else {
+      document.exitFullscreen().then(() => {
+        setIsFullscreen(false);
+      }).catch(err => {
+        console.error("Erro ao sair da tela inteira:", err);
+      });
+    }
+  };
+
   const handleRightClickHelp = (e, title, desc) => {
     e.preventDefault();
     alert(`${title}\n\n${desc}`);
@@ -1382,11 +1409,32 @@ export default function App() {
         <canvas ref={canvasRef} />
       </div>
 
+      {/* ── Painel Superior Direito — Controles de visualização (Tela Inteira / Ocultar UI) ── */}
+      <div className={`panel-top-right mat${showLinksDrawer && !isUiHidden ? ' drawer-open' : ''}`}>
+        <button
+          className="icon-btn"
+          title={isFullscreen ? "Sair da Tela Inteira" : "Tela Inteira"}
+          onClick={toggleFullscreen}
+          onContextMenu={(e) => handleRightClickHelp(e, "Tela Inteira", "Alterna a exibição do aplicativo para o modo de tela inteira do navegador.")}
+        >
+          {isFullscreen ? <Shrink size={18} strokeWidth={1.75} /> : <Expand size={18} strokeWidth={1.75} />}
+        </button>
+
+        <button
+          className={`icon-btn${isUiHidden ? ' is-active' : ''}`}
+          title={isUiHidden ? "Mostrar Painéis" : "Ocultar Painéis"}
+          onClick={() => setIsUiHidden(h => !h)}
+          onContextMenu={(e) => handleRightClickHelp(e, "Ocultar Painéis", "Oculta temporariamente todas as barras de ferramentas da tela para uma visualização livre de distrações. Clique novamente para restaurar.")}
+        >
+          {isUiHidden ? <EyeOff size={18} strokeWidth={1.75} style={{ color: 'var(--blue)' }} /> : <Eye size={18} strokeWidth={1.75} />}
+        </button>
+      </div>
+
       {/* ── Título no Canto Superior Esquerdo (Painel Flutuante Interativo) ── */}
       <button 
-        className="panel-title mat"
+        className={`panel-title mat${isUiHidden ? ' ui-hidden' : ''}`}
         title="Apresentação e Guia (Onboarding)"
-        onClick={() => { setShowOnboarding(true); setActiveOnboardingSlide(0); }}
+        onClick={() => { if (!isUiHidden) { setShowOnboarding(true); setActiveOnboardingSlide(0); } }}
       >
         <span className="app-title-bold">Artero</span>
         <span className="app-title-beta">Open Beta</span>
@@ -1396,7 +1444,7 @@ export default function App() {
       {/* ═══════════════════════════════════════════════
           TOOLBAR CENTRAL — ferramentas principais
           ═══════════════════════════════════════════════ */}
-      <div className="toolbar mat">
+      <div className={`toolbar mat${isUiHidden ? ' ui-hidden' : ''}`}>
 
         <button
           className={`icon-btn${activeTool === 'select' ? ' is-active' : ''}`}
@@ -1534,7 +1582,7 @@ export default function App() {
       {/* ═══════════════════════════════════════════════
           PAINEL ESQUERDO — controles da prancheta
           ═══════════════════════════════════════════════ */}
-      <div className="panel-left mat">
+      <div className={`panel-left mat${isUiHidden ? ' ui-hidden' : ''}`}>
         {/* Diminuir */}
         <button
           className="icon-btn"
@@ -1576,7 +1624,7 @@ export default function App() {
       {/* ═══════════════════════════════════════════════
           PAINEL DIREITO — zoom de visualização
           ═══════════════════════════════════════════════ */}
-      <div className="panel-right mat">
+      <div className={`panel-right mat${isUiHidden ? ' ui-hidden' : ''}`}>
         <button
           className="icon-btn"
           title={isDark ? 'Modo Dia' : 'Modo Noite'}
@@ -1629,7 +1677,7 @@ export default function App() {
           SIDEBAR DESLIZANTE — LINKS ADICIONADOS
           ═══════════════════════════════════════════════ */}
       {showLinksDrawer && (
-        <div className="links-drawer mat">
+        <div className={`links-drawer mat${isUiHidden ? ' ui-hidden' : ''}`}>
           <div className="links-drawer-header">
             <span className="links-drawer-title">Links & Arquivos ({linksList.length})</span>
             <button className="links-drawer-close" onClick={() => setShowLinksDrawer(false)}>
