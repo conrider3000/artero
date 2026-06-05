@@ -4,7 +4,7 @@ import {
   ImagePlus, MousePointer2, ZoomIn, ZoomOut, Save, X,
   ExternalLink, Download, FileText, Info, FileJson,
   Minus, Plus, Link, Undo2, Redo2, Trash2, Contrast, LayoutGrid,
-  Eraser, Maximize, Grid
+  Eraser, Maximize, Grid, Hand
 } from 'lucide-react';
 import { HexColorPicker } from 'react-colorful';
 import { jsPDF } from 'jspdf';
@@ -157,6 +157,11 @@ export default function App() {
   const [artboardColor, setArtboardColor] = useState('#fafafa');
   const [isBlueprint, setIsBlueprint] = useState(false);
   const [prevColor, setPrevColor] = useState('#fafafa');
+
+  const [activeTool, setActiveTool] = useState('select'); // 'select' | 'pan'
+  const activeToolRef = useRef('select');
+  useEffect(() => { activeToolRef.current = activeTool; }, [activeTool]);
+  const isSpacePressedRef = useRef(false);
 
   // ── Tema — Inicia sempre em Modo Escuro (Night Mode) ──────────────────────
   const [isDark, setIsDark] = useState(true);
@@ -522,11 +527,15 @@ export default function App() {
       size: size ? formatBytes(size) : 'N/A'
     });
 
+    const isPanMode = activeToolRef.current === 'pan';
+
     // Posiciona no centro da prancheta virtual (origem 0,0) com um pequeno deslocamento em cascata
     const offset = (fc.getObjects().length * 20) % 200;
     img.set({
       left: targetW / 2 - (imgW * img.scaleX) / 2 + offset,
       top: targetH / 2 - (imgH * img.scaleY) / 2 + offset,
+      selectable: !isPanMode,
+      evented: !isPanMode
     });
 
     fc.add(img);
@@ -766,32 +775,69 @@ export default function App() {
     fc.on('selection:updated', updateSelection);
     fc.on('selection:cleared', updateSelection);
 
+    // Configura o cursor inicial no Canvas
+    fc.selection = (activeToolRef.current === 'select');
+    fc.defaultCursor = (activeToolRef.current === 'pan' ? 'grab' : 'default');
+
     // ── Arrastar para panoramizar (Pan livre) ───────────────────────────────
     let panning = false, lastX = 0, lastY = 0;
+    let lastClickTime = 0;
+    let isDoubleClickPan = false;
 
     fc.on('mouse:down', (opt) => {
-      if (!fc.getActiveObject()) {
+      const now = Date.now();
+      const isDoubleClick = (now - lastClickTime < 300);
+      lastClickTime = now;
+
+      const isPanMode = activeToolRef.current === 'pan' || isSpacePressedRef.current;
+      
+      if (isPanMode || isDoubleClick) {
         panning = true;
+        isDoubleClickPan = isDoubleClick;
         fc.selection = false;
+        lastX = opt.e.clientX;
+        lastY = opt.e.clientY;
+        
+        fc.defaultCursor = 'grabbing';
+        fc.setCursor('grabbing');
+      } else {
+        // Clicar e arrastar no fundo faz a caixa de seleção do Fabric (fc.selection = true)
+        panning = false;
+        fc.selection = true;
+      }
+    });
+
+    fc.on('mouse:move', (opt) => {
+      if (panning) {
+        fc.defaultCursor = 'grabbing';
+        fc.setCursor('grabbing');
+
+        const vpt = fc.viewportTransform.slice();
+        vpt[4] += opt.e.clientX - lastX;
+        vpt[5] += opt.e.clientY - lastY;
+        fc.setViewportTransform(vpt);
+        fc.requestRenderAll();
+        
         lastX = opt.e.clientX;
         lastY = opt.e.clientY;
       }
     });
 
-    fc.on('mouse:move', (opt) => {
-      if (!panning) return;
-      const vpt = fc.viewportTransform.slice();
-      vpt[4] += opt.e.clientX - lastX;
-      vpt[5] += opt.e.clientY - lastY;
-      fc.setViewportTransform(vpt);
-      fc.requestRenderAll();
-      lastX = opt.e.clientX;
-      lastY = opt.e.clientY;
-    });
-
     fc.on('mouse:up', () => {
       panning = false;
-      fc.selection = true;
+      isDoubleClickPan = false;
+      
+      const isPanMode = activeToolRef.current === 'pan' || isSpacePressedRef.current;
+      if (isPanMode) {
+        fc.selection = false;
+        fc.defaultCursor = 'grab';
+        fc.setCursor('grab');
+      } else {
+        fc.selection = true;
+        fc.defaultCursor = 'default';
+        fc.setCursor('default');
+      }
+      fc.requestRenderAll();
     });
 
     // ── Zoom com scroll relativo ao cursor do mouse ───────────────────────
@@ -822,6 +868,32 @@ export default function App() {
       const isInputActive = document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA';
       if (isInputActive) return;
 
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (!isSpacePressedRef.current) {
+          isSpacePressedRef.current = true;
+          fc.selection = false;
+          fc.defaultCursor = 'grab';
+          fc.setCursor('grab');
+          fc.forEachObject(o => {
+            o.selectable = false;
+            o.evented = false;
+          });
+          fc.discardActiveObject();
+          fc.requestRenderAll();
+        }
+      }
+
+      if (e.key.toLowerCase() === 'v') {
+        e.preventDefault();
+        handleSetActiveTool('select');
+      }
+
+      if (e.key.toLowerCase() === 'h') {
+        e.preventDefault();
+        handleSetActiveTool('pan');
+      }
+
       if ((e.key === 'Delete' || e.key === 'Backspace') && activeObject) {
         e.preventDefault();
         handleDeleteSelected();
@@ -842,6 +914,38 @@ export default function App() {
       }
     };
     window.addEventListener('keydown', onKeyDown);
+
+    const onKeyUp = (e) => {
+      if (e.code === 'Space') {
+        const isInputActive = document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA';
+        if (!isInputActive) {
+          e.preventDefault();
+          isSpacePressedRef.current = false;
+          const tool = activeToolRef.current;
+          if (tool === 'pan') {
+            fc.selection = false;
+            fc.defaultCursor = 'grab';
+            fc.setCursor('grab');
+            fc.forEachObject(o => {
+              o.selectable = false;
+              o.evented = false;
+            });
+          } else {
+            fc.selection = true;
+            fc.defaultCursor = 'default';
+            fc.setCursor('default');
+            fc.forEachObject(o => {
+              if (o.get('meta')) {
+                o.selectable = true;
+                o.evented = true;
+              }
+            });
+          }
+          fc.requestRenderAll();
+        }
+      }
+    };
+    window.addEventListener('keyup', onKeyUp);
 
     // ── Drop de imagem ────────────────────────────────────────────────────
     const placeImg = (url, name, type = 'image/web', size = null) => {
@@ -965,6 +1069,7 @@ export default function App() {
     return () => {
       window.removeEventListener('resize', onResize);
       window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
       window.removeEventListener('drop', onDrop);
       window.removeEventListener('paste', onPaste);
       window.removeEventListener('beforeunload', handleBeforeUnload);
@@ -994,6 +1099,34 @@ export default function App() {
       setIsBlueprint(false);
     }
   };
+
+  const handleSetActiveTool = useCallback((tool) => {
+    setActiveTool(tool);
+    const fc = fabricRef.current;
+    if (!fc) return;
+    
+    if (tool === 'pan') {
+      fc.selection = false;
+      fc.defaultCursor = 'grab';
+      fc.setCursor('grab');
+      fc.forEachObject(o => {
+        o.selectable = false;
+        o.evented = false;
+      });
+    } else {
+      fc.selection = true;
+      fc.defaultCursor = 'default';
+      fc.setCursor('default');
+      fc.forEachObject(o => {
+        if (o.get('meta')) {
+          o.selectable = true;
+          o.evented = true;
+        }
+      });
+    }
+    fc.discardActiveObject();
+    fc.requestRenderAll();
+  }, []);
 
   const handleRightClickHelp = (e, title, desc) => {
     e.preventDefault();
@@ -1255,11 +1388,22 @@ export default function App() {
           ═══════════════════════════════════════════════ */}
       <div className="toolbar mat">
 
-        <button className="icon-btn" title="Selecionar"
-          onClick={() => { if (fabricRef.current) fabricRef.current.isDrawingMode = false; }}
-          onContextMenu={(e) => handleRightClickHelp(e, "Selecionar", "Desativa o modo de desenho ou outras ferramentas, permitindo selecionar, mover, redimensionar e girar imagens livremente na prancheta.")}
+        <button
+          className={`icon-btn${activeTool === 'select' ? ' is-active' : ''}`}
+          title="Ferramenta Seleção (V)"
+          onClick={() => handleSetActiveTool('select')}
+          onContextMenu={(e) => handleRightClickHelp(e, "Seleção (V)", "Ativa a ferramenta de seleção. Clicar no fundo e arrastar cria um retângulo de seleção (seleção em janela). Clicar nas imagens permite movê-las, redimensioná-las ou rotacioná-las.")}
         >
           <MousePointer2 size={18} strokeWidth={1.75} />
+        </button>
+
+        <button
+          className={`icon-btn${activeTool === 'pan' ? ' is-active' : ''}`}
+          title="Ferramenta Mão / Mover Tela (H)"
+          onClick={() => handleSetActiveTool('pan')}
+          onContextMenu={(e) => handleRightClickHelp(e, "Mão / Mover Tela (H)", "Ativa a ferramenta de mãozinha. Clicar e arrastar em qualquer ponto da tela move a visualização inteira do seu workspace.")}
+        >
+          <Hand size={18} strokeWidth={1.75} />
         </button>
 
         <button className="icon-btn" title="Adicionar imagem"
