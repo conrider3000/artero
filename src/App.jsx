@@ -181,6 +181,7 @@ export default function App() {
   const redoStack = useRef([]);
   const isApplyingHistory = useRef(false);
   const hasUnsavedChangesRef = useRef(false);
+  const prevZoomLevelRef = useRef(1);
 
   // ── Sincroniza refs ───────────────────────────────────────────────────────
   const artboardColorRef = useRef(artboardColor);
@@ -537,41 +538,48 @@ export default function App() {
   useEffect(() => {
     handleImageLoadedRef.current = handleImageLoaded;
   }, [handleImageLoaded]);
-  const placeGif = useCallback(async (url, name, size = null) => {
-    const fc = fabricRef.current;
-    if (!fc) return;
-    try {
-      const giflerLib = await loadGifler();
-      const canvasBuffer = document.createElement('canvas');
-      let fabricImage = null;
-      let isFirstFrame = true;
-      
-      giflerLib(url).frames(canvasBuffer, (ctx, frame) => {
-        if (canvasBuffer.width !== frame.width || canvasBuffer.height !== frame.height) {
-          canvasBuffer.width = frame.width;
-          canvasBuffer.height = frame.height;
-        }
-        ctx.clearRect(0, 0, frame.width, frame.height);
-        ctx.drawImage(frame.buffer, 0, 0);
+  const placeGif = useCallback((url, name, size = null) => {
+    return new Promise(async (resolve) => {
+      const fc = fabricRef.current;
+      if (!fc) {
+        resolve();
+        return;
+      }
+      try {
+        const giflerLib = await loadGifler();
+        const canvasBuffer = document.createElement('canvas');
+        let fabricImage = null;
+        let isFirstFrame = true;
         
-        if (isFirstFrame) {
-          isFirstFrame = false;
-          fabricImage = new fabric.FabricImage(canvasBuffer);
-          handleImageLoaded(fabricImage, name, 'image/gif', size);
-        } else if (fabricImage) {
-          if (fabricImage.width !== canvasBuffer.width || fabricImage.height !== canvasBuffer.height) {
-            fabricImage.set({
-              width: canvasBuffer.width,
-              height: canvasBuffer.height
-            });
+        giflerLib(url).frames(canvasBuffer, (ctx, frame) => {
+          if (canvasBuffer.width !== frame.width || canvasBuffer.height !== frame.height) {
+            canvasBuffer.width = frame.width;
+            canvasBuffer.height = frame.height;
           }
-          fabricImage.set({ dirty: true });
-          fabricRef.current?.requestRenderAll();
-        }
-      }, true);
-    } catch (e) {
-      console.error("Erro ao carregar GIF:", e);
-    }
+          ctx.clearRect(0, 0, frame.width, frame.height);
+          ctx.drawImage(frame.buffer, 0, 0);
+          
+          if (isFirstFrame) {
+            isFirstFrame = false;
+            fabricImage = new fabric.FabricImage(canvasBuffer);
+            handleImageLoaded(fabricImage, name, 'image/gif', size);
+            resolve();
+          } else if (fabricImage) {
+            if (fabricImage.width !== canvasBuffer.width || fabricImage.height !== canvasBuffer.height) {
+              fabricImage.set({
+                width: canvasBuffer.width,
+                height: canvasBuffer.height
+              });
+            }
+            fabricImage.set({ dirty: true });
+            fabricRef.current?.requestRenderAll();
+          }
+        }, true);
+      } catch (e) {
+        console.error("Erro ao carregar GIF:", e);
+        resolve();
+      }
+    });
   }, [handleImageLoaded]);
 
   const toggleGrayscale = useCallback((obj) => {
@@ -605,7 +613,13 @@ export default function App() {
     const objs = fc.getObjects().filter(o => o.get('meta'));
     if (objs.length === 0) return;
 
-    const padding = 40;
+    const avgSize = objs.reduce((sum, obj) => {
+      const w = obj.width * obj.scaleX;
+      const h = obj.height * obj.scaleY;
+      return sum + Math.min(w, h);
+    }, 0) / objs.length;
+    
+    const padding = Math.max(30, Math.min(100, Math.round(avgSize * 0.12)));
     const maxRowW = virtualWRef.current * 0.8;
     const startX = virtualWRef.current * 0.1;
     const startY = virtualHRef.current * 0.1;
@@ -850,8 +864,13 @@ export default function App() {
                   if (processed.type === 'image/gif') {
                     placeGif(ev.target.result, processed.name, processed.size).then(() => resolve());
                   } else {
-                    placeImg(ev.target.result, processed.name, processed.type, processed.size);
-                    resolve();
+                    fabric.FabricImage.fromURL(ev.target.result).then((img) => {
+                      handleImageLoaded(img, processed.name, processed.type, processed.size);
+                      resolve();
+                    }).catch((err) => {
+                      console.error("Erro ao carregar imagem dropada:", err);
+                      resolve();
+                    });
                   }
                 };
                 r.readAsDataURL(processed.blob);
@@ -965,12 +984,17 @@ export default function App() {
   const toggleBlueprint = () => {
     if (!isBlueprint) {
       setPrevColor(artboardColor);
-      setArtboardColor('#003153');
+      setArtboardColor('#1a3a5c');
       setIsBlueprint(true);
     } else {
       setArtboardColor(prevColor);
       setIsBlueprint(false);
     }
+  };
+
+  const handleRightClickHelp = (e, title, desc) => {
+    e.preventDefault();
+    alert(`${title}\n\n${desc}`);
   };
 
   const handleAddImage = () => {
@@ -1035,6 +1059,68 @@ export default function App() {
     const z = centerAndFit();
     setZoomLevel(z);
   }, [centerAndFit]);
+
+  const handleFitContent = useCallback(() => {
+    const fc = fabricRef.current;
+    if (!fc) return;
+    const objs = fc.getObjects().filter(o => o.get('meta'));
+    if (objs.length === 0) {
+      const z = centerAndFit();
+      setZoomLevel(z);
+      return;
+    }
+    
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    objs.forEach(obj => {
+      const bound = obj.getBoundingRect(true);
+      if (bound.left < minX) minX = bound.left;
+      if (bound.top < minY) minY = bound.top;
+      if (bound.left + bound.width > maxX) maxX = bound.left + bound.width;
+      if (bound.top + bound.height > maxY) maxY = bound.top + bound.height;
+    });
+    
+    const width = maxX - minX;
+    const height = maxY - minY;
+    const padding = 60;
+    const wWithPadding = width + padding * 2;
+    const hWithPadding = height + padding * 2;
+    
+    const scaleX = window.innerWidth / wWithPadding;
+    const scaleY = window.innerHeight / hWithPadding;
+    let z = Math.min(scaleX, scaleY);
+    z = Math.max(0.05, Math.min(4, z));
+    
+    const midX = minX + width / 2;
+    const midY = minY + height / 2;
+    
+    const vpt = fc.viewportTransform.slice();
+    vpt[0] = z;
+    vpt[3] = z;
+    vpt[4] = window.innerWidth / 2 - midX * z;
+    vpt[5] = window.innerHeight / 2 - midY * z;
+    
+    fc.setViewportTransform(vpt);
+    fc.requestRenderAll();
+    setZoomLevel(z);
+  }, [centerAndFit]);
+
+  const toggleZoom100 = useCallback(() => {
+    const fc = fabricRef.current;
+    if (!fc) return;
+    
+    const currentPercent = Math.round(zoomLevel * 100);
+    if (currentPercent === 100) {
+      const targetZoom = prevZoomLevelRef.current || 1;
+      const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+      fc.zoomToPoint({ x: cx, y: cy }, targetZoom);
+      setZoomLevel(targetZoom);
+    } else {
+      prevZoomLevelRef.current = zoomLevel;
+      const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+      fc.zoomToPoint({ x: cx, y: cy }, 1);
+      setZoomLevel(1);
+    }
+  }, [zoomLevel]);
 
   const handleZoom = (direction) => {
     const fc = fabricRef.current;
@@ -1167,48 +1253,74 @@ export default function App() {
       <div className="toolbar mat">
 
         <button className="icon-btn" title="Selecionar"
-          onClick={() => { if (fabricRef.current) fabricRef.current.isDrawingMode = false; }}>
+          onClick={() => { if (fabricRef.current) fabricRef.current.isDrawingMode = false; }}
+          onContextMenu={(e) => handleRightClickHelp(e, "Selecionar", "Desativa o modo de desenho ou outras ferramentas, permitindo selecionar, mover, redimensionar e girar imagens livremente na prancheta.")}
+        >
           <MousePointer2 size={18} strokeWidth={1.75} />
         </button>
 
-        <button className="icon-btn" title="Adicionar imagem" onClick={handleAddImage}>
+        <button className="icon-btn" title="Adicionar imagem"
+          onClick={handleAddImage}
+          onContextMenu={(e) => handleRightClickHelp(e, "Adicionar imagem", "Abre o seletor do computador para importar uma ou mais imagens para a prancheta de uma só vez.")}
+        >
           <ImagePlus size={18} strokeWidth={1.75} />
         </button>
 
-        <button className="icon-btn" title="Auto-Organizar Imagens (Smart Grid)" onClick={packObjects}>
+        <button className="icon-btn" title="Auto-Organizar Imagens (Smart Grid)"
+          onClick={packObjects}
+          onContextMenu={(e) => handleRightClickHelp(e, "Smart Grid (Auto-Organizar)", "Alinha e organiza todas as imagens na prancheta automaticamente em fileiras perfeitas com espaçamento proporcional uniforme.")}
+        >
           <LayoutGrid size={18} strokeWidth={1.75} />
         </button>
 
         <div className="bar-sep" />
 
         {/* Undo e Redo */}
-        <button className="icon-btn" title="Desfazer (Ctrl+Z)" onClick={handleUndo} disabled={!canUndo}>
+        <button className="icon-btn" title="Desfazer (Ctrl+Z)"
+          onClick={handleUndo}
+          disabled={!canUndo}
+          onContextMenu={(e) => handleRightClickHelp(e, "Desfazer (Ctrl+Z)", "Reverte a última ação de edição realizada na prancheta (movimentação, inserção, exclusão, etc.).")}
+        >
           <Undo2 size={18} strokeWidth={1.75} style={{ opacity: canUndo ? 1 : 0.4 }} />
         </button>
 
-        <button className="icon-btn" title="Refazer (Ctrl+Shift+Z)" onClick={handleRedo} disabled={!canRedo}>
+        <button className="icon-btn" title="Refazer (Ctrl+Shift+Z)"
+          onClick={handleRedo}
+          disabled={!canRedo}
+          onContextMenu={(e) => handleRightClickHelp(e, "Refazer (Ctrl+Shift+Z)", "Reaplica a última alteração desfeita.")}
+        >
           <Redo2 size={18} strokeWidth={1.75} style={{ opacity: canRedo ? 1 : 0.4 }} />
         </button>
 
         {/* Lixeira */}
-        <button className="icon-btn" title="Excluir selecionado (Delete)" onClick={handleDeleteSelected} disabled={!hasSelection}>
+        <button className="icon-btn" title="Excluir selecionado (Delete)"
+          onClick={handleDeleteSelected}
+          disabled={!hasSelection}
+          onContextMenu={(e) => handleRightClickHelp(e, "Excluir selecionado", "Remove permanentemente a imagem selecionada da prancheta.")}
+        >
           <Trash2 size={18} strokeWidth={1.75} style={{ color: hasSelection ? '#FF3B30' : 'var(--label)', opacity: hasSelection ? 1 : 0.4 }} />
         </button>
  
         {/* Limpar Prancheta */}
-        <button className="icon-btn" title="Limpar toda a prancheta" onClick={handleClearCanvas}>
+        <button className="icon-btn" title="Limpar toda a prancheta"
+          onClick={handleClearCanvas}
+          onContextMenu={(e) => handleRightClickHelp(e, "Limpar prancheta", "Apaga completamente todas as imagens da prancheta de uma só vez após confirmação.")}
+        >
           <Eraser size={18} strokeWidth={1.75} style={{ color: 'var(--label)' }} />
         </button>
 
         {/* Links */}
-        <button className={`icon-btn${showLinksDrawer ? ' is-active' : ''}`} title="Painel de Links & Referências" onClick={() => setShowLinksDrawer(d => !d)}>
+        <button className={`icon-btn${showLinksDrawer ? ' is-active' : ''}`} title="Painel de Links & Referências"
+          onClick={() => setShowLinksDrawer(d => !d)}
+          onContextMenu={(e) => handleRightClickHelp(e, "Painel de Links", "Abre a barra lateral direita contendo a lista de todas as imagens, arquivos, metadados e atalhos rápidos.")}
+        >
           <Link size={18} strokeWidth={1.75} />
         </button>
 
         <div className="bar-sep" />
 
         {/* Cor da prancheta */}
-        <div className="color-slot">
+        <div className="color-slot" onContextMenu={(e) => handleRightClickHelp(e, "Cor da Prancheta", "Abre o seletor de cores para alterar a cor de fundo do seu canvas.")}>
           <div className="color-ring" role="button" tabIndex={0}
             onClick={() => setShowColorPicker(s => !s)}
             onKeyDown={e => e.key === 'Enter' && setShowColorPicker(s => !s)}>
@@ -1224,7 +1336,7 @@ export default function App() {
         <div className="bar-sep" />
 
         {/* Salvar/Exportar */}
-        <div className="save-slot">
+        <div className="save-slot" onContextMenu={(e) => handleRightClickHelp(e, "Salvar & Exportar", "Abre o menu para baixar seu moodboard como PNG, JPG, PDF ou salvar o arquivo aberto em JSON.")}>
           <button
             className={`icon-btn${showSaveMenu ? ' is-active' : ''}`}
             title="Exportar / Salvar"
@@ -1267,12 +1379,22 @@ export default function App() {
           ═══════════════════════════════════════════════ */}
       <div className="panel-left mat">
         {/* Diminuir */}
-        <button className="icon-btn" title="Diminuir tamanho do canvas" onClick={() => scaleSheet(1/1.2)}>
+        <button
+          className="icon-btn"
+          title="Diminuir tamanho do canvas"
+          onClick={() => scaleSheet(1/1.2)}
+          onContextMenu={(e) => handleRightClickHelp(e, "Diminuir Prancheta", "Reduz proporcionalmente o tamanho da largura e altura da prancheta virtual.")}
+        >
           <Minus size={15} strokeWidth={2.25} />
         </button>
 
         {/* Aumentar */}
-        <button className="icon-btn" title="Aumentar tamanho do canvas" onClick={() => scaleSheet(1.2)}>
+        <button
+          className="icon-btn"
+          title="Aumentar tamanho do canvas"
+          onClick={() => scaleSheet(1.2)}
+          onContextMenu={(e) => handleRightClickHelp(e, "Aumentar Prancheta", "Aumenta proporcionalmente o tamanho da largura e altura da prancheta virtual.")}
+        >
           <Plus size={15} strokeWidth={2.25} />
         </button>
 
@@ -1280,6 +1402,18 @@ export default function App() {
 
         {/* Texto minimalista indicando o tamanho da prancheta virtual */}
         <span className="canvas-size-text">{virtualW} × {virtualH} px</span>
+
+        <div className="bar-sep" />
+
+        {/* Modo Blueprint reposicionado ao lado do tamanho */}
+        <button
+          className={`icon-btn${isBlueprint ? ' is-active' : ''}`}
+          title="Modo Blueprint (Grid Técnico)"
+          onClick={toggleBlueprint}
+          onContextMenu={(e) => handleRightClickHelp(e, "Modo Blueprint (Grid Técnico)", "Ativa um grid milimetrado técnico sobre um fundo azul de prússia para auxiliar no alinhamento preciso das imagens.")}
+        >
+          <Grid size={15} strokeWidth={1.75} style={{ color: isBlueprint ? 'var(--blue)' : 'var(--label-2)' }} />
+        </button>
       </div>
 
       {/* ═══════════════════════════════════════════════
@@ -1287,33 +1421,50 @@ export default function App() {
           ═══════════════════════════════════════════════ */}
       <div className="panel-right mat">
         <button
-          className={`icon-btn${isBlueprint ? ' is-active' : ''}`}
-          title="Modo Blueprint (Grid Técnico)"
-          onClick={toggleBlueprint}
-        >
-          <Grid size={15} strokeWidth={1.75} style={{ color: isBlueprint ? 'var(--blue)' : 'var(--label-2)' }} />
-        </button>
-        <div className="bar-sep" />
-        <button
           className="icon-btn"
           title={isDark ? 'Modo Dia' : 'Modo Noite'}
           onClick={() => setIsDark(d => !d)}
+          onContextMenu={(e) => handleRightClickHelp(e, "Alternar Tema", "Alterna o tema visual da interface entre os modos Claro e Escuro.")}
           style={{ fontSize: '16px' }}
         >
           {isDark ? '☀️' : '🌙'}
         </button>
         <div className="bar-sep" />
-        <button className="icon-btn" title="Zoom −" onClick={() => handleZoom('out')}>
-          <ZoomOut size={15} strokeWidth={1.75} />
-        </button>
-        <button className="icon-btn" title="Ajustar à Tela" onClick={handleResetZoom}>
+        {/* Botão Maximize reposicionado ANTES do zoom - e chamando handleFitContent */}
+        <button
+          className="icon-btn"
+          title="Ajustar Conteúdo"
+          onClick={handleFitContent}
+          onContextMenu={(e) => handleRightClickHelp(e, "Ajustar Conteúdo", "Centraliza e ajusta o nível de zoom automaticamente para mostrar todas as imagens presentes na prancheta.")}
+        >
           <Maximize size={15} strokeWidth={1.75} />
         </button>
-        <button className="icon-btn" title="Zoom +" onClick={() => handleZoom('in')}>
+        <button
+          className="icon-btn"
+          title="Zoom −"
+          onClick={() => handleZoom('out')}
+          onContextMenu={(e) => handleRightClickHelp(e, "Zoom Out", "Reduz o zoom de visualização da prancheta.")}
+        >
+          <ZoomOut size={15} strokeWidth={1.75} />
+        </button>
+        <button
+          className="icon-btn"
+          title="Zoom +"
+          onClick={() => handleZoom('in')}
+          onContextMenu={(e) => handleRightClickHelp(e, "Zoom In", "Aumenta o zoom de visualização da prancheta.")}
+        >
           <ZoomIn size={15} strokeWidth={1.75} />
         </button>
         <div className="bar-sep" />
-        <span className="zoom-value">{Math.round(zoomLevel * 100)}%</span>
+        <span
+          className="zoom-value"
+          onClick={toggleZoom100}
+          role="button"
+          style={{ cursor: 'pointer', userSelect: 'none' }}
+          onContextMenu={(e) => handleRightClickHelp(e, "Alternar Zoom 100%", "Clique para alternar rapidamente entre o nível de zoom de 100% (escala real) e o nível anterior.")}
+        >
+          {Math.round(zoomLevel * 100)}%
+        </span>
       </div>
 
 
