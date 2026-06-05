@@ -720,6 +720,7 @@ body {
   overflow: hidden;
   transition: height 0.35s cubic-bezier(0.16, 1, 0.3, 1);
   padding: 0;
+  max-height: 90vh;
 }
 
 .onboarding-close-btn {
@@ -745,10 +746,12 @@ body {
 
 .onboarding-content-wrap {
   flex: 1;
-  overflow: hidden;
+  overflow-y: auto;
+  min-height: 0;
   position: relative;
   margin: 0 32px;
   padding-top: 32px;
+  padding-bottom: 24px;
 }
 
 .onboarding-slides-track {
@@ -854,7 +857,7 @@ body {
 .onboarding-feature-item .feature-icon svg { stroke: var(--blue); }
 
 .onboarding-feature-item .feature-kbd-icon {
-  width: 48px;
+  width: 76px;
   height: 28px;
   border-radius: 8px;
   background: var(--fill-2);
@@ -868,6 +871,43 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, sans-serif;
   flex-shrink: 0;
   box-shadow: 0 1.5px 0 rgba(0,0,0,0.1);
+}
+
+/* ── Formatos Suportados (Badges Grid) ── */
+.format-badges-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  margin-top: 14px;
+  margin-bottom: 6px;
+}
+
+.format-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 4px;
+  background: var(--fill-2);
+  border: 1px solid var(--mat-border);
+  border-radius: 12px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--label);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--shadow-sm);
+}
+
+.format-badge:hover {
+  background: var(--fill-3);
+  transform: translateY(-2px);
+  border-color: var(--blue);
+  box-shadow: var(--shadow-md);
+}
+
+.format-badge svg {
+  margin-bottom: 4px;
+  stroke: var(--blue);
 }
 
 .feature-details {
@@ -987,13 +1027,82 @@ body {
    MODO BLUEPRINT (AZUL DA PRÚSSIA & GRID TÉCNICO)
    ========================================================================= */
 .app-root.is-blueprint {
+  background-size: 20px 20px, 20px 20px, 100px 100px, 100px 100px;
+}
+
+/* Blueprint Board (Blue) */
+.app-root.grid-blueprint {
   background-color: #0041BA !important;
   background-image: 
     linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
     linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
-  background-size: 20px 20px, 20px 20px, 100px 100px, 100px 100px;
+}
+
+/* Chalkboard (Giz/Preto) */
+.app-root.grid-chalkboard {
+  background-color: #1A1A1A !important;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+}
+
+/* Cutting Mat Green (Giz/Verde) */
+.app-root.grid-cutting-green {
+  background-color: #0F3A2E !important;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+}
+
+/* Sketch Paper (Creme/Milimetrado) */
+.app-root.grid-sketch-paper {
+  background-color: #F4EBD9 !important;
+  background-image: 
+    linear-gradient(rgba(139, 90, 43, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(139, 90, 43, 0.05) 1px, transparent 1px),
+    linear-gradient(rgba(139, 90, 43, 0.10) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(139, 90, 43, 0.10) 1px, transparent 1px);
+}
+
+/* Cutting Mat Gray (Cinza) */
+.app-root.grid-cutting-gray {
+  background-color: #2B2D30 !important;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+}
+
+.grid-board-slot {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.grid-bubbles {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 8px;
+  z-index: 100;
+  animation: popUp 0.22s cubic-bezier(0.16,1,0.3,1) both;
+}
+
+.grid-bubbles .bubble-btn.is-active {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.3);
+  transform: scale(1.12);
 }
 
 /* =========================================================================

@@ -4,7 +4,8 @@ import {
   ImagePlus, MousePointer2, ZoomIn, ZoomOut, Save, X,
   ExternalLink, Download, FileText, Info, FileJson,
   Minus, Plus, Link, Undo2, Redo2, Trash2, Contrast, LayoutGrid,
-  Eraser, Maximize, Grid, Hand, Expand, Shrink, Eye, EyeOff
+  Eraser, Maximize, Grid, Hand, Expand, Shrink, Eye, EyeOff, Pipette,
+  Sun, Moon, Clipboard
 } from 'lucide-react';
 import { HexColorPicker } from 'react-colorful';
 import { jsPDF } from 'jspdf';
@@ -157,18 +158,25 @@ export default function App() {
   const [artboardColor, setArtboardColor] = useState('#fafafa');
   const [isBlueprint, setIsBlueprint] = useState(false);
   const [prevColor, setPrevColor] = useState('#fafafa');
+  const [gridBoardType, setGridBoardType] = useState('blueprint');
+  const [showGridMenu, setShowGridMenu] = useState(false);
 
   const [activeTool, setActiveTool] = useState('select'); // 'select' | 'pan'
   const activeToolRef = useRef('select');
   useEffect(() => { activeToolRef.current = activeTool; }, [activeTool]);
   const isSpacePressedRef = useRef(false);
 
+  const [fullscreenMode, setFullscreenMode] = useState(0); // 0: Normal, 1: Abas Visíveis, 2: Tela Inteira Total
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isUiHidden, setIsUiHidden] = useState(false);
 
   useEffect(() => {
     const onFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
+      const active = !!document.fullscreenElement;
+      setIsFullscreen(active);
+      if (!active) {
+        setFullscreenMode(0);
+      }
     };
     document.addEventListener('fullscreenchange', onFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
@@ -236,7 +244,7 @@ export default function App() {
       if (w === screenW && h === screenH) {
         zoom = 1.0;
       } else {
-        zoom = Math.min((screenW - 80) / w, (screenH - 130) / h);
+        zoom = Math.min((screenW - 100) / w, (screenH - 100) / h);
       }
     }
 
@@ -298,7 +306,7 @@ export default function App() {
       // Restaurar filtros nos objetos após carregar o estado
       fc.getObjects().forEach(obj => {
         if (obj.get('isGrayscale')) {
-          obj.filters = [new fabric.FabricImage.filters.Grayscale()];
+          obj.filters = [new fabric.filters.Grayscale()];
           obj.applyFilters();
         } else {
           obj.filters = [];
@@ -336,7 +344,7 @@ export default function App() {
       // Restaurar filtros nos objetos após carregar o estado
       fc.getObjects().forEach(obj => {
         if (obj.get('isGrayscale')) {
-          obj.filters = [new fabric.FabricImage.filters.Grayscale()];
+          obj.filters = [new fabric.filters.Grayscale()];
           obj.applyFilters();
         } else {
           obj.filters = [];
@@ -617,12 +625,13 @@ export default function App() {
     const fc = fabricRef.current;
     if (!fc) return;
 
-    const hasFilter = obj.filters.some(f => f instanceof fabric.FabricImage.filters.Grayscale);
+    const GrayscaleFilterClass = fabric.filters.Grayscale;
+    const hasFilter = obj.filters.some(f => f instanceof GrayscaleFilterClass);
     if (hasFilter) {
-      obj.filters = obj.filters.filter(f => !(f instanceof fabric.FabricImage.filters.Grayscale));
+      obj.filters = obj.filters.filter(f => !(f instanceof GrayscaleFilterClass));
       obj.set('isGrayscale', false);
     } else {
-      const grayscaleFilter = new fabric.FabricImage.filters.Grayscale();
+      const grayscaleFilter = new GrayscaleFilterClass();
       obj.filters.push(grayscaleFilter);
       obj.set('isGrayscale', true);
     }
@@ -742,7 +751,7 @@ export default function App() {
             // Restaurar os filtros nas imagens carregadas
             objects.forEach(obj => {
               if (obj.get('isGrayscale')) {
-                obj.filters = [new fabric.FabricImage.filters.Grayscale()];
+                obj.filters = [new fabric.filters.Grayscale()];
                 obj.applyFilters();
               }
             });
@@ -1118,14 +1127,30 @@ export default function App() {
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const toggleBlueprint = () => {
-    if (!isBlueprint) {
-      setPrevColor(artboardColor);
-      setArtboardColor('#0041BA');
-      setIsBlueprint(true);
-    } else {
+    setShowGridMenu(s => !s);
+  };
+
+  const selectGridBoard = (type) => {
+    const boardColors = {
+      'blueprint': '#0041BA',
+      'chalkboard': '#1A1A1A',
+      'cutting-green': '#0F3A2E',
+      'sketch-paper': '#F4EBD9',
+      'cutting-gray': '#2B2D30'
+    };
+    
+    if (isBlueprint && gridBoardType === type) {
       setArtboardColor(prevColor);
       setIsBlueprint(false);
+    } else {
+      if (!isBlueprint) {
+        setPrevColor(artboardColor);
+      }
+      setGridBoardType(type);
+      setArtboardColor(boardColors[type]);
+      setIsBlueprint(true);
     }
+    setShowGridMenu(false);
   };
 
   const handleColorChange = useCallback((newColor) => {
@@ -1143,6 +1168,21 @@ export default function App() {
       }
     }, 200);
   }, []);
+
+  const handleEyeDropper = useCallback(async () => {
+    if (!('EyeDropper' in window)) {
+      alert('Seu navegador não suporta a ferramenta de conta-gotas.');
+      return;
+    }
+    try {
+      const eyeDropper = new window.EyeDropper();
+      const result = await eyeDropper.open();
+      const color = result.sRGBHex;
+      handleColorChange(color);
+    } catch (e) {
+      console.warn('Conta-gotas cancelado ou falhou:', e);
+    }
+  }, [handleColorChange]);
 
   const handleSetActiveTool = useCallback((tool) => {
     setActiveTool(tool);
@@ -1173,18 +1213,39 @@ export default function App() {
   }, []);
 
   const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().then(() => {
+    if (fullscreenMode === 0) {
+      document.documentElement.requestFullscreen({ navigationUI: 'show' }).then(() => {
+        setFullscreenMode(1);
         setIsFullscreen(true);
       }).catch(err => {
-        console.error("Erro ao ativar tela inteira:", err);
+        console.error("Erro ao ativar tela inteira (navigationUI: show):", err);
+        document.documentElement.requestFullscreen().then(() => {
+          setFullscreenMode(1);
+          setIsFullscreen(true);
+        });
+      });
+    } else if (fullscreenMode === 1) {
+      document.documentElement.requestFullscreen({ navigationUI: 'hide' }).then(() => {
+        setFullscreenMode(2);
+        setIsFullscreen(true);
+      }).catch(err => {
+        console.error("Erro ao transicionar para tela inteira total (navigationUI: hide):", err);
+        setFullscreenMode(2);
       });
     } else {
-      document.exitFullscreen().then(() => {
+      if (document.fullscreenElement) {
+        document.exitFullscreen().then(() => {
+          setFullscreenMode(0);
+          setIsFullscreen(false);
+        }).catch(err => {
+          console.error("Erro ao sair da tela inteira:", err);
+          setFullscreenMode(0);
+          setIsFullscreen(false);
+        });
+      } else {
+        setFullscreenMode(0);
         setIsFullscreen(false);
-      }).catch(err => {
-        console.error("Erro ao sair da tela inteira:", err);
-      });
+      }
     }
   };
 
@@ -1425,7 +1486,7 @@ export default function App() {
     fabricRef.current?.getObjects().filter(o => o.get('meta')).map(o => o.get('meta')) ?? [];
 
   return (
-    <div className={`app-root${isBlueprint ? ' is-blueprint' : ''}`} style={{ backgroundColor: artboardColor }}>
+    <div className={`app-root${isBlueprint ? ` is-blueprint grid-${gridBoardType}` : ''}`} style={{ backgroundColor: artboardColor }}>
 
       {/* Canvas Fabric.js */}
       <div className="canvas-wrap">
@@ -1436,11 +1497,17 @@ export default function App() {
       <div className={`panel-top-right mat${showLinksDrawer && !isUiHidden ? ' drawer-open' : ''}`}>
         <button
           className="icon-btn"
-          title={isFullscreen ? "Sair da Tela Inteira" : "Tela Inteira"}
+          title={
+            fullscreenMode === 0 ? "Tela Inteira (Abas Visíveis)" :
+            fullscreenMode === 1 ? "Tela Inteira (Ocultar Abas)" :
+            "Sair da Tela Inteira"
+          }
           onClick={toggleFullscreen}
-          onContextMenu={(e) => handleRightClickHelp(e, "Tela Inteira", "Alterna a exibição do aplicativo para o modo de tela inteira do navegador.")}
+          onContextMenu={(e) => handleRightClickHelp(e, "Tela Inteira", "Alterna a visualização da tela entre o modo normal, tela cheia com abas visíveis (se suportado pelo navegador) e tela cheia total.")}
         >
-          {isFullscreen ? <Shrink size={18} strokeWidth={1.75} /> : <Expand size={18} strokeWidth={1.75} />}
+          {fullscreenMode === 0 && <Expand size={18} strokeWidth={1.75} />}
+          {fullscreenMode === 1 && <Maximize size={18} strokeWidth={1.75} style={{ color: 'var(--blue)' }} />}
+          {fullscreenMode === 2 && <Shrink size={18} strokeWidth={1.75} style={{ color: 'var(--blue)' }} />}
         </button>
 
         <button
@@ -1547,6 +1614,16 @@ export default function App() {
 
         <div className="bar-sep" />
 
+        {/* Conta-gotas */}
+        <button
+          className="icon-btn"
+          title="Conta-gotas (Copiar Cor)"
+          onClick={handleEyeDropper}
+          onContextMenu={(e) => handleRightClickHelp(e, "Conta-gotas", "Ativa o conta-gotas para capturar qualquer cor da tela, definindo-a como fundo e salvando o HEX no clipboard (Ctrl+C).")}
+        >
+          <Pipette size={17} strokeWidth={1.75} />
+        </button>
+
         {/* Cor da prancheta */}
         <div className="color-slot" onContextMenu={(e) => handleRightClickHelp(e, "Cor da Prancheta", "Abre o seletor de cores para alterar a cor de fundo do seu canvas.")}>
           <div className="color-ring" role="button" tabIndex={0}
@@ -1560,6 +1637,29 @@ export default function App() {
             </div>
           )}
         </div>
+
+        {/* Botão Preto e Branco (Grayscale) */}
+        <button
+          className={`icon-btn${isGrayscaleActive ? ' is-active' : ''}`}
+          title="Alternar Preto e Branco (Monocromático)"
+          disabled={!hasSelection}
+          onClick={() => {
+            const active = fabricRef.current?.getActiveObject();
+            if (active) toggleGrayscale(active);
+          }}
+          onContextMenu={(e) => handleRightClickHelp(e, "Preto e Branco", "Alterna o filtro monocromático (escala de cinza) na imagem selecionada.")}
+          style={{ opacity: hasSelection ? 1 : 0.35, cursor: hasSelection ? 'pointer' : 'not-allowed' }}
+        >
+          <span style={{
+            width: '14px',
+            height: '14px',
+            borderRadius: '50%',
+            border: `1.5px solid ${isGrayscaleActive ? 'var(--blue)' : 'var(--label-2)'}`,
+            background: `linear-gradient(135deg, ${isGrayscaleActive ? 'var(--blue)' : 'var(--label-2)'} 50%, transparent 50%)`,
+            display: 'inline-block',
+            transition: 'all 0.15s ease'
+          }} />
+        </button>
 
         <div className="bar-sep" />
 
@@ -1633,15 +1733,35 @@ export default function App() {
 
         <div className="bar-sep" />
 
-        {/* Modo Blueprint reposicionado ao lado do tamanho */}
-        <button
-          className={`icon-btn${isBlueprint ? ' is-active' : ''}`}
-          title="Modo Blueprint (Grid Técnico)"
-          onClick={toggleBlueprint}
-          onContextMenu={(e) => handleRightClickHelp(e, "Modo Blueprint (Grid Técnico)", "Ativa um grid milimetrado técnico sobre um fundo azul de prússia para auxiliar no alinhamento preciso das imagens.")}
-        >
-          <Grid size={15} strokeWidth={1.75} style={{ color: isBlueprint ? 'var(--blue)' : 'var(--label-2)' }} />
-        </button>
+        {/* Escolha de Quadro / Prancha */}
+        <div className="grid-board-slot" onContextMenu={(e) => handleRightClickHelp(e, "Quadros e Pranchas", "Escolha entre diferentes estilos de quadros milimetrados, como Blueprint, Quadro Negro, Quadro Verde de giz/corte, Papel de Esboço ou Prancha Cinza.")}>
+          <button
+            className={`icon-btn${isBlueprint ? ' is-active' : ''}`}
+            title="Escolher Quadro / Prancha"
+            onClick={() => setShowGridMenu(s => !s)}
+          >
+            <Grid size={15} strokeWidth={1.75} style={{ color: isBlueprint ? 'var(--blue)' : 'var(--label-2)' }} />
+          </button>
+          {showGridMenu && (
+            <div className="grid-bubbles">
+              <button className={`bubble-btn${gridBoardType === 'cutting-gray' && isBlueprint ? ' is-active' : ''}`} title="Prancha de Corte (Cinza)" onClick={() => selectGridBoard('cutting-gray')}>
+                <span className="color-dot" style={{ backgroundColor: '#2B2D30', width: '14px', height: '14px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.2)' }} />
+              </button>
+              <button className={`bubble-btn${gridBoardType === 'sketch-paper' && isBlueprint ? ' is-active' : ''}`} title="Papel Milimetrado (Esboço Creme)" onClick={() => selectGridBoard('sketch-paper')}>
+                <span className="color-dot" style={{ backgroundColor: '#F4EBD9', width: '14px', height: '14px', borderRadius: '50%', border: '1px solid rgba(0,0,0,0.15)' }} />
+              </button>
+              <button className={`bubble-btn${gridBoardType === 'cutting-green' && isBlueprint ? ' is-active' : ''}`} title="Quadro Verde (Giz / Prancha de Corte)" onClick={() => selectGridBoard('cutting-green')}>
+                <span className="color-dot" style={{ backgroundColor: '#0F3A2E', width: '14px', height: '14px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.2)' }} />
+              </button>
+              <button className={`bubble-btn${gridBoardType === 'chalkboard' && isBlueprint ? ' is-active' : ''}`} title="Quadro Negro (Giz)" onClick={() => selectGridBoard('chalkboard')}>
+                <span className="color-dot" style={{ backgroundColor: '#1A1A1A', width: '14px', height: '14px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.2)' }} />
+              </button>
+              <button className={`bubble-btn${gridBoardType === 'blueprint' && isBlueprint ? ' is-active' : ''}`} title="Quadro Blueprint (Azul Técnico)" onClick={() => selectGridBoard('blueprint')}>
+                <span className="color-dot" style={{ backgroundColor: '#0041BA', width: '14px', height: '14px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.2)' }} />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ═══════════════════════════════════════════════
@@ -1725,8 +1845,18 @@ export default function App() {
                   </div>
                   <div className="links-drawer-actions" onClick={(e) => e.stopPropagation()}>
                     <button className="links-action-btn" title="Alternar Preto e Branco"
-                      onClick={() => toggleGrayscale(item.ref)}>
-                      <Contrast size={12} strokeWidth={1.75} style={{ color: item.ref.get('isGrayscale') ? 'var(--blue)' : 'var(--label-2)' }} />
+                      onClick={() => toggleGrayscale(item.ref)}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <span style={{
+                        width: '10px',
+                        height: '10px',
+                        borderRadius: '50%',
+                        border: `1.2px solid ${item.ref.get('isGrayscale') ? 'var(--blue)' : 'var(--label-2)'}`,
+                        background: `linear-gradient(135deg, ${item.ref.get('isGrayscale') ? 'var(--blue)' : 'var(--label-2)'} 50%, transparent 50%)`,
+                        display: 'inline-block',
+                        transition: 'all 0.15s ease'
+                      }} />
                     </button>
                     {item.meta.source.startsWith('http') && (
                       <a href={item.meta.source} target="_blank" rel="noreferrer" className="links-action-btn" title="Abrir Link Original">
@@ -1767,7 +1897,7 @@ export default function App() {
           <div 
             className="onboarding-modal" 
             onClick={(e) => e.stopPropagation()}
-            style={{ height: `${[340, 520, 480, 480, 410][activeOnboardingSlide]}px` }}
+            style={{ height: `${[380, 420, 440, 520, 440, 480][activeOnboardingSlide]}px` }}
           >
             <button className="onboarding-close-btn" onClick={() => setShowOnboarding(false)} title="Fechar Onboarding">
               <X size={16} strokeWidth={2} />
@@ -1796,194 +1926,246 @@ export default function App() {
                   </p>
                 </div>
 
-                {/* Slide 2: Atalhos & Produtividade (Combinado) */}
+                {/* Slide 2: Importação & Formatos */}
                 <div className="onboarding-slide">
-                  <h2 className="onboarding-title">Atalhos & Produtividade</h2>
-                  
-                  {/* Subseção: Inserção Rápida */}
-                  <div className="onboarding-features-list" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '4px', marginBottom: '8px' }}>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
-                      <ImagePlus size={18} className="feature-icon" />
+                  <h2 className="onboarding-title">Importação & Formatos</h2>
+                  <div className="onboarding-features-list" style={{ gap: '14px' }}>
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
+                      <div className="feature-icon">
+                        <ImagePlus size={18} />
+                      </div>
                       <div className="feature-details">
                         <span className="feature-name">Arrastar & Soltar Global</span>
-                        <span className="feature-desc" style={{ fontSize: '11px' }}>Solte fotos do PC/Web (PNG, JPG, GIF, WEBP, SVG, HEIC).</span>
+                        <span className="feature-desc">Solte qualquer foto direto do seu computador ou navegador na tela do Artero.</span>
+                      </div>
+                    </div>
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
+                      <div className="feature-icon">
+                        <Clipboard size={18} />
+                      </div>
+                      <div className="feature-details">
+                        <span className="feature-name">Colagem do Clipboard</span>
+                        <span className="feature-desc">Copie imagens da internet (ou dê Print Screen) e simplesmente aperte Ctrl+V no Artero.</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Grid de Formatos Suportados */}
+                  <div className="format-badges-grid">
+                    <div className="format-badge">
+                      <FileText size={16} />
+                      <span>PNG</span>
+                    </div>
+                    <div className="format-badge">
+                      <FileText size={16} />
+                      <span>JPG</span>
+                    </div>
+                    <div className="format-badge">
+                      <FileText size={16} />
+                      <span>GIF</span>
+                    </div>
+                    <div className="format-badge">
+                      <FileText size={16} />
+                      <span>WEBP</span>
+                    </div>
+                    <div className="format-badge">
+                      <FileText size={16} />
+                      <span>SVG</span>
+                    </div>
+                    <div className="format-badge">
+                      <FileText size={16} />
+                      <span>HEIC</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Slide 3: Prancheta & Funções */}
+                <div className="onboarding-slide">
+                  <h2 className="onboarding-title">Prancheta & Funções</h2>
+                  <div className="onboarding-features-list" style={{ gap: '14px' }}>
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
+                      <div className="feature-icon">
+                        <Maximize size={18} />
+                      </div>
+                      <div className="feature-details">
+                        <span className="feature-name">Redimensionar Prancheta (+ / -)</span>
+                        <span className="feature-desc">Use os botões de mais (+) e menos (-) no painel esquerdo para expandir ou encolher a área de exportação.</span>
+                      </div>
+                    </div>
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
+                      <div className="feature-icon">
+                        <Grid size={18} />
+                      </div>
+                      <div className="feature-details">
+                        <span className="feature-name">Quadros e Grades Técnicas</span>
+                        <span className="feature-desc">Escolha entre 5 tipos de pranchetas (Blueprint, Giz Negro/Verde, Papel Creme e Corte) no menu do botão Grid.</span>
+                      </div>
+                    </div>
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
+                      <div className="feature-icon">
+                        <Sun size={18} />
+                      </div>
+                      <div className="feature-details">
+                        <span className="feature-name">Modo Dia & Noite (Claro/Escuro)</span>
+                        <span className="feature-desc">Alterne entre o tema Claro e o Tema Escuro (Night Mode) clicando no botão de Sol/Lua no canto inferior direito.</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Slide 4: Atalhos de Mouse & Teclado */}
+                <div className="onboarding-slide">
+                  <h2 className="onboarding-title">Atalhos de Mouse & Teclado</h2>
+                  
+                  {/* Bloco 1: Atalhos de Mouse */}
+                  <h3 className="onboarding-subtitle" style={{ fontSize: '12px', fontWeight: '700', color: 'var(--blue)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>Atalhos de Mouse</h3>
+                  <div className="onboarding-features-list" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '8px' }}>
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
+                      <span className="feature-kbd-icon">Mouse Dir</span>
+                      <div className="feature-details">
+                        <span className="feature-name">Mão (Pan)</span>
+                        <span className="feature-desc">Arraste a tela segurando o botão direito do mouse.</span>
                       </div>
                     </div>
                     <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
-                      <span className="feature-kbd-icon" style={{ width: '54px' }}>Ctrl+V</span>
+                      <span className="feature-kbd-icon">Scroll</span>
                       <div className="feature-details">
-                        <span className="feature-name">Colagem do Clipboard</span>
-                        <span className="feature-desc" style={{ fontSize: '11px' }}>Copie imagens externas e use Ctrl+V para colar direto.</span>
+                        <span className="feature-name">Zoom Contínuo</span>
+                        <span className="feature-desc">Use a roda do mouse para aproximar ou afastar a tela.</span>
+                      </div>
+                    </div>
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
+                      <span className="feature-kbd-icon">2 Cliques</span>
+                      <div className="feature-details">
+                        <span className="feature-name">Pan por Clique</span>
+                        <span className="feature-desc">Dois cliques no fundo para mover o canvas sem atalhos.</span>
+                      </div>
+                    </div>
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
+                      <span className="feature-kbd-icon">Drag</span>
+                      <div className="feature-details">
+                        <span className="feature-name">Seleção por Janela</span>
+                        <span className="feature-desc">Arraste o mouse no fundo com botão esquerdo para selecionar.</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Linha separadora discreta */}
-                  <div style={{ borderTop: '1px solid var(--separator)', margin: '4px 0 10px 0', opacity: 0.5 }} />
+                  {/* Linha divisória horizontal */}
+                  <div style={{ borderTop: '1px solid var(--separator)', margin: '10px 0 12px 0', opacity: 0.5 }} />
 
-                  {/* Subseção: Atalhos (Esquerda vs Direita/Pan) */}
-                  <div className="onboarding-features-list" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '8px' }}>
-                    {/* Coluna Esquerda: Edição e Seleção */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
-                        <span className="feature-kbd-icon">V</span>
-                        <div className="feature-details">
-                          <span className="feature-name">Seleção</span>
-                          <span className="feature-desc" style={{ fontSize: '11px' }}>Ferramenta de Seta. Arraste no fundo para selecionar em janela.</span>
-                        </div>
-                      </div>
-                      <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
-                        <span className="feature-kbd-icon" style={{ width: '85px', fontSize: '9px' }}>Del / Backspace</span>
-                        <div className="feature-details">
-                          <span className="feature-name">Deletar Imagem</span>
-                          <span className="feature-desc" style={{ fontSize: '11px' }}>Apaga a imagem selecionada.</span>
-                        </div>
-                      </div>
-                      <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
-                        <span className="feature-kbd-icon" style={{ width: '70px' }}>Ctrl+Z / Y</span>
-                        <div className="feature-details">
-                          <span className="feature-name">Desfazer/Refazer</span>
-                          <span className="feature-desc" style={{ fontSize: '11px' }}>Desfaça ou refaça suas últimas edições.</span>
-                        </div>
+                  {/* Bloco 2: Atalhos de Teclado */}
+                  <h3 className="onboarding-subtitle" style={{ fontSize: '12px', fontWeight: '700', color: 'var(--blue)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>Atalhos de Teclado</h3>
+                  <div className="onboarding-features-list" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
+                      <span className="feature-kbd-icon">V / H</span>
+                      <div className="feature-details">
+                        <span className="feature-name">Seleção / Mão</span>
+                        <span className="feature-desc">Alterne entre Seta (V) e Mãozinha de Pan (H).</span>
                       </div>
                     </div>
-
-                    {/* Coluna Direita: Tudo sobre o Pan/Navegação */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
-                        <span className="feature-kbd-icon">H</span>
-                        <div className="feature-details">
-                          <span className="feature-name">Mão (Pan)</span>
-                          <span className="feature-desc" style={{ fontSize: '11px' }}>Ferramenta de Mãozinha. Arraste a tela livremente.</span>
-                        </div>
-                      </div>
-                      <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
-                        <span className="feature-kbd-icon" style={{ width: '54px' }}>Space</span>
-                        <div className="feature-details">
-                          <span className="feature-name">Mão Temporária</span>
-                          <span className="feature-desc" style={{ fontSize: '11px' }}>Segure barra de espaço para Pan rápido. Solte para voltar.</span>
-                        </div>
-                      </div>
-                      <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
-                        <span className="feature-kbd-icon" style={{ width: '65px', fontSize: '9px' }}>2 Cliques</span>
-                        <div className="feature-details">
-                          <span className="feature-name">Pan por Clique</span>
-                          <span className="feature-desc" style={{ fontSize: '11px' }}>Dois cliques no fundo para mover a tela sem atalhos.</span>
-                        </div>
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
+                      <span className="feature-kbd-icon">Espaço</span>
+                      <div className="feature-details">
+                        <span className="feature-name">Mão Temporária</span>
+                        <span className="feature-desc">Segure Barra de Espaço para Pan rápido e solte para voltar.</span>
                       </div>
                     </div>
-                  </div>
-
-                  {/* Linha separadora discreta */}
-                  <div style={{ borderTop: '1px dashed var(--separator)', margin: '4px 0 10px 0', opacity: 0.5 }} />
-
-                  {/* Subseção: Dica Extra como Tópico Normal */}
-                  <div className="onboarding-feature-item" style={{ margin: 0 }}>
-                    <div className="feature-icon" style={{ background: 'var(--fill-3)', border: '1px solid var(--mat-border)' }}>
-                      <Info size={16} style={{ stroke: 'var(--blue)' }} />
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
+                      <span className="feature-kbd-icon">Delete</span>
+                      <div className="feature-details">
+                        <span className="feature-name">Deletar Imagem</span>
+                        <span className="feature-desc">Apague a imagem selecionada usando a tecla Delete.</span>
+                      </div>
                     </div>
-                    <div className="feature-details">
-                      <span className="feature-name">Dica de Navegação & Ajuda</span>
-                      <span className="feature-desc" style={{ fontSize: '11.5px', lineHeight: '1.4' }}>
-                        Clique no valor de % do Zoom para ir para 100%, ou clique com o <strong>botão direito</strong> em qualquer controle dos painéis para abrir a ajuda!
-                      </span>
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
+                      <span className="feature-kbd-icon">Backsp.</span>
+                      <div className="feature-details">
+                        <span className="feature-name">Deletar Alternativo</span>
+                        <span className="feature-desc">Apague a imagem selecionada usando Backspace.</span>
+                      </div>
+                    </div>
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
+                      <span className="feature-kbd-icon">Ctrl+Z/Y</span>
+                      <div className="feature-details">
+                        <span className="feature-name">Desfazer/Refazer</span>
+                        <span className="feature-desc">Desfaça ou refaça suas últimas alterações no canvas.</span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Slide 3: Organização & Edição */}
+                {/* Slide 5: Info & Organização */}
                 <div className="onboarding-slide">
-                  <h2 className="onboarding-title">Organização & Edição</h2>
-                  <div className="onboarding-features-list">
-                    <div className="onboarding-feature-item">
-                      <LayoutGrid size={18} className="feature-icon" />
+                  <h2 className="onboarding-title">Info & Organização</h2>
+                  <div className="onboarding-features-list" style={{ gap: '14px' }}>
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
+                      <div className="feature-icon">
+                        <Maximize size={18} />
+                      </div>
                       <div className="feature-details">
-                        <span className="feature-name">Grid de Auto-organização (Smart Grid)</span>
-                        <span className="feature-desc">Organize todas as imagens em fileiras alinhadas instantaneamente com um clique.</span>
+                        <span className="feature-name">Magic Zoom (Enquadrar Tudo)</span>
+                        <span className="feature-desc">Centraliza e ajusta o zoom automaticamente para enquadrar todas as imagens na tela com margem simétrica.</span>
                       </div>
                     </div>
-                    <div className="onboarding-feature-item">
-                      <Contrast size={18} className="feature-icon" />
-                      <div className="feature-details">
-                        <span className="feature-name">Modo Preto e Branco (Monocromático)</span>
-                        <span className="feature-desc">Selecione uma imagem e clique no botão de contraste para deixá-la monocromática.</span>
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
+                      <div className="feature-icon">
+                        <Link size={18} />
                       </div>
-                    </div>
-                    <div className="onboarding-feature-item">
-                      <Link size={18} className="feature-icon" />
                       <div className="feature-details">
                         <span className="feature-name">Painel de Links & Referências</span>
-                        <span className="feature-desc">Veja metadados, copie links originais, aplique filtros ou delete itens de forma reativa pela Sidebar.</span>
+                        <span className="feature-desc">Acesse metadados, links de origem das imagens e gerencie itens diretamente pela Sidebar.</span>
                       </div>
                     </div>
-                    <div className="onboarding-feature-item">
-                      <Eraser size={18} className="feature-icon" />
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
+                      <div className="feature-icon">
+                        <Contrast size={18} />
+                      </div>
                       <div className="feature-details">
-                        <span className="feature-name">Limpar Prancheta (Eraser)</span>
-                        <span className="feature-desc">Apague todo o canvas com um clique. Ação protegida por diálogo de confirmação e suportada por Desfazer (Ctrl+Z).</span>
+                        <span className="feature-name">Modo Preto e Branco (Monocromático)</span>
+                        <span className="feature-desc">Aplique filtros preto e branco nas imagens selecionadas com o botão de contraste no painel inferior.</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Slide 4: Salvar & Exportar */}
+                {/* Slide 6: Salvar & Exportar */}
                 <div className="onboarding-slide">
                   <h2 className="onboarding-title">Salvar & Exportar</h2>
-                  <div className="onboarding-features-list">
-                    <div className="onboarding-feature-item">
-                      <Save size={18} className="feature-icon" />
+                  <div className="onboarding-features-list" style={{ gap: '14px' }}>
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
+                      <div className="feature-icon">
+                        <Save size={18} />
+                      </div>
                       <div className="feature-details">
-                        <span className="feature-name">Auto-salvamento em Cache</span>
-                        <span className="feature-desc">Seu progresso é salvo no IndexedDB local de forma silenciosa e resiliente.</span>
+                        <span className="feature-name">Auto-salvamento Resiliente</span>
+                        <span className="feature-desc">Seu trabalho é salvo localmente em cache de forma automática a cada alteração.</span>
                       </div>
                     </div>
-                    <div className="onboarding-feature-item">
-                      <ImagePlus size={18} className="feature-icon" />
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
+                      <div className="feature-icon">
+                        <ImagePlus size={18} />
+                      </div>
                       <div className="feature-details">
                         <span className="feature-name">Exportar Imagens (PNG / JPG)</span>
-                        <span className="feature-desc">Salve como PNG transparente ou JPG preenchido com a cor de fundo da sua prancheta.</span>
+                        <span className="feature-desc">Gere um arquivo de imagem da prancheta inteira com fundo transparente ou colorido.</span>
                       </div>
                     </div>
-                    <div className="onboarding-feature-item">
-                      <FileText size={18} className="feature-icon" />
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
+                      <div className="feature-icon">
+                        <FileText size={18} />
+                      </div>
                       <div className="feature-details">
                         <span className="feature-name">Exportar PDF Vetorial</span>
                         <span className="feature-desc">Gere PDFs de alta qualidade no tamanho original da prancheta ou em formatos padrão (A2 a A5).</span>
                       </div>
                     </div>
-                    <div className="onboarding-feature-item">
-                      <FileJson size={18} className="feature-icon" />
-                      <div className="feature-details">
-                        <span className="feature-name">Salvar Arquivo Aberto (JSON)</span>
-                        <span className="feature-desc">Gere um arquivo editável local `.json` para salvar ou carregar seu moodboard de volta.</span>
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
+                      <div className="feature-icon">
+                        <FileJson size={18} />
                       </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Slide 5: Tela, Zoom & Tema */}
-                <div className="onboarding-slide">
-                  <h2 className="onboarding-title">Tela, Zoom & Tema</h2>
-                  <div className="onboarding-features-list">
-                    <div className="onboarding-feature-item">
-                      <Plus size={18} className="feature-icon" />
                       <div className="feature-details">
-                        <span className="feature-name">Ajustar Tamanho da Prancheta (+ / -)</span>
-                        <span className="feature-desc">No painel esquerdo, use os botões de mais e menos para expandir ou contrair o tamanho físico (resolução) do seu canvas virtual.</span>
-                      </div>
-                    </div>
-                    <div className="onboarding-feature-item">
-                      <Maximize size={18} className="feature-icon" />
-                      <div className="feature-details">
-                        <span className="feature-name">Magic Zoom (Enquadrar Conteúdo)</span>
-                        <span className="feature-desc">Centraliza todas as imagens na tela e ajusta o zoom automaticamente para enquadrar todo o conteúdo com uma margem confortável.</span>
-                      </div>
-                    </div>
-                    <div className="onboarding-feature-item">
-                      <ZoomIn size={18} className="feature-icon" />
-                      <div className="feature-details">
-                        <span className="feature-name">Zoom & Visualização</span>
-                        <span className="feature-desc">Aproxime e afaste a prancheta usando as lupas no canto inferior direito ou a roda do mouse. Altere também o tema entre Claro/Escuro usando o botão de Sol/Lua.</span>
+                        <span className="feature-name">Salvar em Arquivo Editável (JSON)</span>
+                        <span className="feature-desc">Exporte ou importe um arquivo `.json` contendo todas as referências do seu moodboard para trabalhar depois.</span>
                       </div>
                     </div>
                   </div>
@@ -2002,7 +2184,7 @@ export default function App() {
               </button>
 
               <div className="onboarding-dots">
-                {[0, 1, 2, 3, 4].map((idx) => (
+                {[0, 1, 2, 3, 4, 5].map((idx) => (
                   <button 
                     key={idx} 
                     className={`onboarding-dot${activeOnboardingSlide === idx ? ' is-active' : ''}`}
@@ -2012,7 +2194,7 @@ export default function App() {
                 ))}
               </div>
 
-              {activeOnboardingSlide < 4 ? (
+              {activeOnboardingSlide < 5 ? (
                 <button 
                   className="onboarding-nav-btn fill" 
                   onClick={() => setActiveOnboardingSlide(s => s + 1)}
