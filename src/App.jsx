@@ -4,7 +4,7 @@ import {
   ImagePlus, MousePointer2, ZoomIn, ZoomOut, Save, X,
   ExternalLink, Download, FileText, Info, FileJson,
   Minus, Plus, Link, Undo2, Redo2, Trash2, Contrast, LayoutGrid,
-  Eraser, Maximize
+  Eraser, Maximize, Grid
 } from 'lucide-react';
 import { HexColorPicker } from 'react-colorful';
 import { jsPDF } from 'jspdf';
@@ -155,6 +155,8 @@ export default function App() {
 
   const [zoomLevel, setZoomLevel] = useState(1);
   const [artboardColor, setArtboardColor] = useState('#FFFFFF');
+  const [isBlueprint, setIsBlueprint] = useState(false);
+  const [prevColor, setPrevColor] = useState('#FFFFFF');
 
   // ── Tema — Inicia sempre em Modo Escuro (Night Mode) ──────────────────────
   const [isDark, setIsDark] = useState(true);
@@ -516,10 +518,11 @@ export default function App() {
       size: size ? formatBytes(size) : 'N/A'
     });
 
-    // Posiciona no centro da prancheta virtual (origem 0,0)
+    // Posiciona no centro da prancheta virtual (origem 0,0) com um pequeno deslocamento em cascata
+    const offset = (fc.getObjects().length * 20) % 200;
     img.set({
-      left: targetW / 2 - (imgW * img.scaleX) / 2,
-      top: targetH / 2 - (imgH * img.scaleY) / 2,
+      left: targetW / 2 - (imgW * img.scaleX) / 2 + offset,
+      top: targetH / 2 - (imgH * img.scaleY) / 2 + offset,
     });
 
     fc.add(img);
@@ -602,7 +605,7 @@ export default function App() {
     const objs = fc.getObjects().filter(o => o.get('meta'));
     if (objs.length === 0) return;
 
-    const padding = 30;
+    const padding = 40;
     const maxRowW = virtualWRef.current * 0.8;
     const startX = virtualWRef.current * 0.1;
     const startY = virtualHRef.current * 0.1;
@@ -638,6 +641,7 @@ export default function App() {
             left: startLeft + (targetLeft - startLeft) * v,
             top: startTop + (targetTop - startTop) * v
           });
+          obj.setCoords();
           fc.requestRenderAll();
         }
       });
@@ -834,21 +838,36 @@ export default function App() {
     const onDrop = async (e) => {
       e.preventDefault();
       if (e.dataTransfer.files?.length) {
-        const f = e.dataTransfer.files[0];
-        if (isImageFile(f)) {
-          try {
-            const processed = await processImageFile(f);
-            const r = new FileReader();
-            r.onload = (ev) => {
-              if (processed.type === 'image/gif') {
-                placeGif(ev.target.result, processed.name, processed.size);
-              } else {
-                placeImg(ev.target.result, processed.name, processed.type, processed.size);
+        const files = Array.from(e.dataTransfer.files);
+        const imageFiles = files.filter(isImageFile);
+        if (imageFiles.length > 0) {
+          const loadPromises = imageFiles.map((f) => {
+            return new Promise(async (resolve) => {
+              try {
+                const processed = await processImageFile(f);
+                const r = new FileReader();
+                r.onload = (ev) => {
+                  if (processed.type === 'image/gif') {
+                    placeGif(ev.target.result, processed.name, processed.size).then(() => resolve());
+                  } else {
+                    placeImg(ev.target.result, processed.name, processed.type, processed.size);
+                    resolve();
+                  }
+                };
+                r.readAsDataURL(processed.blob);
+              } catch (err) {
+                console.error("Falha ao processar arquivo dropado:", err);
+                resolve();
               }
-            };
-            r.readAsDataURL(processed.blob);
-          } catch (err) {
-            console.error("Falha ao processar arquivo dropado:", err);
+            });
+          });
+
+          await Promise.all(loadPromises);
+
+          if (imageFiles.length > 1) {
+            setTimeout(() => {
+              packObjects();
+            }, 300);
           }
           return;
         }
@@ -943,30 +962,60 @@ export default function App() {
   }, [virtualW, virtualH, centerAndFit]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
+  const toggleBlueprint = () => {
+    if (!isBlueprint) {
+      setPrevColor(artboardColor);
+      setArtboardColor('#003153');
+      setIsBlueprint(true);
+    } else {
+      setArtboardColor(prevColor);
+      setIsBlueprint(false);
+    }
+  };
+
   const handleAddImage = () => {
     const fc = fabricRef.current;
     if (!fc) return;
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*, image/heic';
+    input.multiple = true;
     input.onchange = async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      try {
-        const processed = await processImageFile(file);
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          if (processed.type === 'image/gif') {
-            placeGif(ev.target.result, processed.name, processed.size);
-          } else {
-            fabric.FabricImage.fromURL(ev.target.result).then((img) => {
-              handleImageLoaded(img, processed.name, processed.type, processed.size);
-            });
+      const files = Array.from(e.target.files || []);
+      if (files.length === 0) return;
+
+      const loadPromises = files.map((file) => {
+        return new Promise(async (resolve) => {
+          try {
+            const processed = await processImageFile(file);
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+              if (processed.type === 'image/gif') {
+                placeGif(ev.target.result, processed.name, processed.size).then(() => resolve());
+              } else {
+                fabric.FabricImage.fromURL(ev.target.result).then((img) => {
+                  handleImageLoaded(img, processed.name, processed.type, processed.size);
+                  resolve();
+                }).catch((err) => {
+                  console.error(err);
+                  resolve();
+                });
+              }
+            };
+            reader.readAsDataURL(processed.blob);
+          } catch (err) {
+            console.error("Erro ao carregar imagem selecionada:", err);
+            resolve();
           }
-        };
-        reader.readAsDataURL(processed.blob);
-      } catch (err) {
-        console.error("Erro ao carregar imagem selecionada:", err);
+        });
+      });
+
+      await Promise.all(loadPromises);
+
+      if (files.length > 1) {
+        setTimeout(() => {
+          packObjects();
+        }, 300);
       }
     };
     input.click();
@@ -1094,7 +1143,7 @@ export default function App() {
     fabricRef.current?.getObjects().filter(o => o.get('meta')).map(o => o.get('meta')) ?? [];
 
   return (
-    <div className="app-root" style={{ backgroundColor: artboardColor }}>
+    <div className={`app-root${isBlueprint ? ' is-blueprint' : ''}`} style={{ backgroundColor: artboardColor }}>
 
       {/* Canvas Fabric.js */}
       <div className="canvas-wrap">
@@ -1167,7 +1216,7 @@ export default function App() {
           </div>
           {showColorPicker && (
             <div className="color-popover mat">
-              <HexColorPicker color={artboardColor} onChange={setArtboardColor} />
+              <HexColorPicker color={artboardColor} onChange={(c) => { setArtboardColor(c); setIsBlueprint(false); }} />
             </div>
           )}
         </div>
@@ -1237,6 +1286,14 @@ export default function App() {
           PAINEL DIREITO — zoom de visualização
           ═══════════════════════════════════════════════ */}
       <div className="panel-right mat">
+        <button
+          className={`icon-btn${isBlueprint ? ' is-active' : ''}`}
+          title="Modo Blueprint (Grid Técnico)"
+          onClick={toggleBlueprint}
+        >
+          <Grid size={15} strokeWidth={1.75} style={{ color: isBlueprint ? 'var(--blue)' : 'var(--label-2)' }} />
+        </button>
+        <div className="bar-sep" />
         <button
           className="icon-btn"
           title={isDark ? 'Modo Dia' : 'Modo Noite'}
