@@ -1767,7 +1767,7 @@ export default function App() {
           <div 
             className="onboarding-modal" 
             onClick={(e) => e.stopPropagation()}
-            style={{ height: `${[340, 380, 480, 480, 410, 490][activeOnboardingSlide]}px` }}
+            style={{ height: `${[340, 520, 480, 480, 410][activeOnboardingSlide]}px` }}
           >
             <button className="onboarding-close-btn" onClick={() => setShowOnboarding(false)} title="Fechar Onboarding">
               <X size={16} strokeWidth={2} />
@@ -1796,23 +1796,97 @@ export default function App() {
                   </p>
                 </div>
 
-                {/* Slide 2: Inserção Rápida */}
+                {/* Slide 2: Atalhos & Produtividade (Combinado) */}
                 <div className="onboarding-slide">
-                  <h2 className="onboarding-title">Inserção Rápida</h2>
-                  <div className="onboarding-features-list">
-                    <div className="onboarding-feature-item">
+                  <h2 className="onboarding-title">Atalhos & Produtividade</h2>
+                  
+                  {/* Subseção: Inserção Rápida */}
+                  <div className="onboarding-features-list" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '4px', marginBottom: '8px' }}>
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
                       <ImagePlus size={18} className="feature-icon" />
                       <div className="feature-details">
                         <span className="feature-name">Arrastar & Soltar Global</span>
-                        <span className="feature-desc">Solte fotos da web ou PC. Aceita: PNG, JPG, JPEG, GIF (animado), WEBP, SVG, BMP, TIFF, ICO e HEIC (iPhone).</span>
+                        <span className="feature-desc" style={{ fontSize: '11px' }}>Solte fotos do PC/Web (PNG, JPG, GIF, WEBP, SVG, HEIC).</span>
                       </div>
                     </div>
-                    <div className="onboarding-feature-item">
-                      <span className="feature-kbd-icon">Ctrl+V</span>
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
+                      <span className="feature-kbd-icon" style={{ width: '54px' }}>Ctrl+V</span>
                       <div className="feature-details">
                         <span className="feature-name">Colagem do Clipboard</span>
-                        <span className="feature-desc">Copie qualquer imagem externa e use Ctrl+V para colá-la direto na prancheta.</span>
+                        <span className="feature-desc" style={{ fontSize: '11px' }}>Copie imagens externas e use Ctrl+V para colar direto.</span>
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Linha separadora discreta */}
+                  <div style={{ borderTop: '1px solid var(--separator)', margin: '4px 0 10px 0', opacity: 0.5 }} />
+
+                  {/* Subseção: Atalhos (Esquerda vs Direita/Pan) */}
+                  <div className="onboarding-features-list" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '8px' }}>
+                    {/* Coluna Esquerda: Edição e Seleção */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
+                        <span className="feature-kbd-icon">V</span>
+                        <div className="feature-details">
+                          <span className="feature-name">Seleção</span>
+                          <span className="feature-desc" style={{ fontSize: '11px' }}>Ferramenta de Seta. Arraste no fundo para selecionar em janela.</span>
+                        </div>
+                      </div>
+                      <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
+                        <span className="feature-kbd-icon" style={{ width: '85px', fontSize: '9px' }}>Del / Backspace</span>
+                        <div className="feature-details">
+                          <span className="feature-name">Deletar Imagem</span>
+                          <span className="feature-desc" style={{ fontSize: '11px' }}>Apaga a imagem selecionada.</span>
+                        </div>
+                      </div>
+                      <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
+                        <span className="feature-kbd-icon" style={{ width: '70px' }}>Ctrl+Z / Y</span>
+                        <div className="feature-details">
+                          <span className="feature-name">Desfazer/Refazer</span>
+                          <span className="feature-desc" style={{ fontSize: '11px' }}>Desfaça ou refaça suas últimas edições.</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Coluna Direita: Tudo sobre o Pan/Navegação */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
+                        <span className="feature-kbd-icon">H</span>
+                        <div className="feature-details">
+                          <span className="feature-name">Mão (Pan)</span>
+                          <span className="feature-desc" style={{ fontSize: '11px' }}>Ferramenta de Mãozinha. Arraste a tela livremente.</span>
+                        </div>
+                      </div>
+                      <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
+                        <span className="feature-kbd-icon" style={{ width: '54px' }}>Space</span>
+                        <div className="feature-details">
+                          <span className="feature-name">Mão Temporária</span>
+                          <span className="feature-desc" style={{ fontSize: '11px' }}>Segure barra de espaço para Pan rápido. Solte para voltar.</span>
+                        </div>
+                      </div>
+                      <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
+                        <span className="feature-kbd-icon" style={{ width: '65px', fontSize: '9px' }}>2 Cliques</span>
+                        <div className="feature-details">
+                          <span className="feature-name">Pan por Clique</span>
+                          <span className="feature-desc" style={{ fontSize: '11px' }}>Dois cliques no fundo para mover a tela sem atalhos.</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Linha separadora discreta */}
+                  <div style={{ borderTop: '1px dashed var(--separator)', margin: '4px 0 10px 0', opacity: 0.5 }} />
+
+                  {/* Subseção: Dica Extra como Tópico Normal */}
+                  <div className="onboarding-feature-item" style={{ margin: 0 }}>
+                    <div className="feature-icon" style={{ background: 'var(--fill-3)', border: '1px solid var(--mat-border)' }}>
+                      <Info size={16} style={{ stroke: 'var(--blue)' }} />
+                    </div>
+                    <div className="feature-details">
+                      <span className="feature-name">Dica de Navegação & Ajuda</span>
+                      <span className="feature-desc" style={{ fontSize: '11.5px', lineHeight: '1.4' }}>
+                        Clique no valor de % do Zoom para ir para 100%, ou clique com o <strong>botão direito</strong> em qualquer controle dos painéis para abrir a ajuda!
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -1915,58 +1989,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Slide 6: Atalhos & Produtividade */}
-                <div className="onboarding-slide">
-                  <h2 className="onboarding-title">Atalhos & Produtividade</h2>
-                  <div className="onboarding-features-list" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '16px' }}>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
-                      <span className="feature-kbd-icon">V</span>
-                      <div className="feature-details">
-                        <span className="feature-name">Seleção</span>
-                        <span className="feature-desc" style={{ fontSize: '11px' }}>Ferramenta de Seta. Arraste no fundo para selecionar em janela.</span>
-                      </div>
-                    </div>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
-                      <span className="feature-kbd-icon">H</span>
-                      <div className="feature-details">
-                        <span className="feature-name">Mão (Pan)</span>
-                        <span className="feature-desc" style={{ fontSize: '11px' }}>Ferramenta de Mãozinha. Clique e arraste para mover a tela.</span>
-                      </div>
-                    </div>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
-                      <span className="feature-kbd-icon">Space</span>
-                      <div className="feature-details">
-                        <span className="feature-name">Mão Temporária</span>
-                        <span className="feature-desc" style={{ fontSize: '11px' }}>Segure a barra de espaço para Pan rápido. Solte para voltar.</span>
-                      </div>
-                    </div>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
-                      <span className="feature-kbd-icon">2 Cliques</span>
-                      <div className="feature-details">
-                        <span className="feature-name">Pan por Clique</span>
-                        <span className="feature-desc" style={{ fontSize: '11px' }}>Dois cliques rápidos no fundo para arrastar a tela sem atalhos.</span>
-                      </div>
-                    </div>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
-                      <span className="feature-kbd-icon">Del / Backspace</span>
-                      <div className="feature-details">
-                        <span className="feature-name">Deletar Imagem</span>
-                        <span className="feature-desc" style={{ fontSize: '11px' }}>Apaga permanentemente a imagem selecionada da prancheta.</span>
-                      </div>
-                    </div>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
-                      <span className="feature-kbd-icon">Ctrl+Z / Y</span>
-                      <div className="feature-details">
-                        <span className="feature-name">Desfazer/Refazer</span>
-                        <span className="feature-desc" style={{ fontSize: '11px' }}>Desfaça ou refaça suas últimas edições ou auto-organizações.</span>
-                      </div>
-                    </div>
-                  </div>
-                  <p className="onboarding-desc" style={{ marginTop: '16px', fontSize: '12px', color: 'var(--label-3)', textAlign: 'center', lineHeight: '1.4' }}>
-                    💡 <strong>Dica Extra:</strong> Clique no valor de % do Zoom (canto direito) para ir para 100%, ou clique com o <strong>botão direito</strong> em qualquer controle dos painéis flutuantes para ver caixas explicativas!
-                  </p>
-                </div>
-
               </div>
             </div>
 
@@ -1980,7 +2002,7 @@ export default function App() {
               </button>
 
               <div className="onboarding-dots">
-                {[0, 1, 2, 3, 4, 5].map((idx) => (
+                {[0, 1, 2, 3, 4].map((idx) => (
                   <button 
                     key={idx} 
                     className={`onboarding-dot${activeOnboardingSlide === idx ? ' is-active' : ''}`}
@@ -1990,7 +2012,7 @@ export default function App() {
                 ))}
               </div>
 
-              {activeOnboardingSlide < 5 ? (
+              {activeOnboardingSlide < 4 ? (
                 <button 
                   className="onboarding-nav-btn fill" 
                   onClick={() => setActiveOnboardingSlide(s => s + 1)}
