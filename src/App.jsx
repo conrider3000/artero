@@ -5,7 +5,7 @@ import {
   ExternalLink, Download, FileText, Info, FileJson,
   Minus, Plus, Link, Undo2, Redo2, Trash2, Contrast, LayoutGrid,
   Eraser, Maximize, Grid, Hand, Expand, Shrink, Eye, EyeOff, Pipette,
-  Sun, Moon, Clipboard
+  Sun, Moon, Clipboard, Move
 } from 'lucide-react';
 import { HexColorPicker } from 'react-colorful';
 import { jsPDF } from 'jspdf';
@@ -1897,7 +1897,7 @@ export default function App() {
           <div 
             className="onboarding-modal" 
             onClick={(e) => e.stopPropagation()}
-            style={{ height: `${[380, 420, 440, 560, 440, 480][activeOnboardingSlide]}px` }}
+            style={{ height: `${[380, 460, 440, 620, 440, 480][activeOnboardingSlide]}px` }}
           >
             <button className="onboarding-close-btn" onClick={() => setShowOnboarding(false)} title="Fechar Onboarding">
               <X size={16} strokeWidth={2} />
@@ -1934,11 +1934,50 @@ export default function App() {
                       <div className="feature-icon">
                         <ImagePlus size={18} />
                       </div>
+                      <div className="feature-details" style={{ width: '100%' }}>
+                        <span className="feature-name">Importar do Computador</span>
+                        <span className="feature-desc">Clique no botão de adicionar imagem no painel inferior para abrir o seletor local.</span>
+                        
+                        {/* Grid de Formatos Suportados abaixo da função de importação */}
+                        <div className="format-badges-grid">
+                          <div className="format-badge">
+                            <FileText size={16} />
+                            <span>PNG</span>
+                          </div>
+                          <div className="format-badge">
+                            <FileText size={16} />
+                            <span>JPG</span>
+                          </div>
+                          <div className="format-badge">
+                            <FileText size={16} />
+                            <span>GIF</span>
+                          </div>
+                          <div className="format-badge">
+                            <FileText size={16} />
+                            <span>WEBP</span>
+                          </div>
+                          <div className="format-badge">
+                            <FileText size={16} />
+                            <span>SVG</span>
+                          </div>
+                          <div className="format-badge">
+                            <FileText size={16} />
+                            <span>HEIC</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
+                      <div className="feature-icon">
+                        <Move size={18} />
+                      </div>
                       <div className="feature-details">
                         <span className="feature-name">Arrastar & Soltar Global</span>
                         <span className="feature-desc">Solte qualquer foto direto do seu computador ou navegador na tela do Artero.</span>
                       </div>
                     </div>
+                    
                     <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
                       <div className="feature-icon">
                         <Clipboard size={18} />
@@ -1947,34 +1986,6 @@ export default function App() {
                         <span className="feature-name">Colagem do Clipboard</span>
                         <span className="feature-desc">Copie imagens da internet (ou dê Print Screen) e simplesmente aperte Ctrl+V no Artero.</span>
                       </div>
-                    </div>
-                  </div>
-                  
-                  {/* Grid de Formatos Suportados */}
-                  <div className="format-badges-grid">
-                    <div className="format-badge">
-                      <FileText size={16} />
-                      <span>PNG</span>
-                    </div>
-                    <div className="format-badge">
-                      <FileText size={16} />
-                      <span>JPG</span>
-                    </div>
-                    <div className="format-badge">
-                      <FileText size={16} />
-                      <span>GIF</span>
-                    </div>
-                    <div className="format-badge">
-                      <FileText size={16} />
-                      <span>WEBP</span>
-                    </div>
-                    <div className="format-badge">
-                      <FileText size={16} />
-                      <span>SVG</span>
-                    </div>
-                    <div className="format-badge">
-                      <FileText size={16} />
-                      <span>HEIC</span>
                     </div>
                   </div>
                 </div>
