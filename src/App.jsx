@@ -154,9 +154,9 @@ export default function App() {
   const virtualHRef = useRef(window.innerHeight);
 
   const [zoomLevel, setZoomLevel] = useState(1);
-  const [artboardColor, setArtboardColor] = useState('#FFFFFF');
+  const [artboardColor, setArtboardColor] = useState('#fafafa');
   const [isBlueprint, setIsBlueprint] = useState(false);
-  const [prevColor, setPrevColor] = useState('#FFFFFF');
+  const [prevColor, setPrevColor] = useState('#fafafa');
 
   // ── Tema — Inicia sempre em Modo Escuro (Night Mode) ──────────────────────
   const [isDark, setIsDark] = useState(true);
@@ -422,6 +422,9 @@ export default function App() {
       fc.clear();
       fc.backgroundColor = null;
       fc.renderAll();
+      
+      setArtboardColor('#fafafa');
+      setIsBlueprint(false);
       
       saveHistory();
       updateLinksList();
