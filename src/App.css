@@ -95,7 +95,6 @@ body {
 .mat {
   background: var(--mat);
   backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
   border: 1px solid var(--mat-border);
   box-shadow: var(--shadow);
 }
@@ -243,7 +242,6 @@ body {
   border: 1px solid var(--mat-border);
   background: var(--mat);
   backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   color: var(--label);
   cursor: pointer;
   display: flex;
@@ -701,7 +699,6 @@ body {
   inset: 0;
   background: rgba(10, 10, 15, 0.65);
   backdrop-filter: blur(35px);
-  -webkit-backdrop-filter: blur(35px);
   z-index: 200;
   display: flex;
   align-items: center;
