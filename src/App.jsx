@@ -4,8 +4,8 @@ import {
   ImagePlus, MousePointer2, ZoomIn, ZoomOut, Save, X,
   ExternalLink, Download, FileText, Info, FileJson,
   Minus, Plus, Link, Undo2, Redo2, Trash2, Contrast, LayoutGrid,
-  Eraser, Maximize, Grid, Hand, Expand, Shrink, Eye, EyeOff, Pipette,
-  Sun, Moon, Clipboard, Move
+  Eraser, Maximize, Grid, Hand, Expand, Shrink, Eye, EyeOff,
+  Sun, Moon, Clipboard, Move, Pointer, Heart, Coffee
 } from 'lucide-react';
 import { HexColorPicker } from 'react-colorful';
 import { jsPDF } from 'jspdf';
@@ -166,7 +166,6 @@ export default function App() {
   useEffect(() => { activeToolRef.current = activeTool; }, [activeTool]);
   const isSpacePressedRef = useRef(false);
 
-  const [fullscreenMode, setFullscreenMode] = useState(0); // 0: Normal, 1: Abas Visíveis, 2: Tela Inteira Total
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isUiHidden, setIsUiHidden] = useState(false);
 
@@ -174,9 +173,6 @@ export default function App() {
     const onFullscreenChange = () => {
       const active = !!document.fullscreenElement;
       setIsFullscreen(active);
-      if (!active) {
-        setFullscreenMode(0);
-      }
     };
     document.addEventListener('fullscreenchange', onFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
@@ -191,6 +187,17 @@ export default function App() {
   const [showPdfSizes,    setShowPdfSizes]     = useState(false);
   const [showOnboarding,  setShowOnboarding]  = useState(true);
   const [activeOnboardingSlide, setActiveOnboardingSlide] = useState(0);
+  const [showClearConfirmModal, setShowClearConfirmModal] = useState(false);
+  const [isMobileWarningVisible, setIsMobileWarningVisible] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobileWarningVisible(window.innerWidth <= 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // ── Novos estados do painel de links, seleção e histórico ─────────────────
   const [linksList, setLinksList] = useState([]);
@@ -206,12 +213,34 @@ export default function App() {
   const isApplyingHistory = useRef(false);
   const hasUnsavedChangesRef = useRef(false);
   const prevZoomLevelRef = useRef(1);
+  const isManuallyScaledRef = useRef(false);
   const copyTimeoutRef = useRef(null);
+  const colorPickerRef = useRef(null);
+  const gridMenuRef = useRef(null);
+  const saveMenuRef = useRef(null);
 
   useEffect(() => {
     return () => {
       if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
     };
+  }, []);
+
+  // Fechar menus flutuantes ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (colorPickerRef.current && !colorPickerRef.current.contains(e.target)) {
+        setShowColorPicker(false);
+      }
+      if (gridMenuRef.current && !gridMenuRef.current.contains(e.target)) {
+        setShowGridMenu(false);
+      }
+      if (saveMenuRef.current && !saveMenuRef.current.contains(e.target)) {
+        setShowSaveMenu(false);
+        setShowPdfSizes(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   // ── Sincroniza refs ───────────────────────────────────────────────────────
@@ -244,7 +273,9 @@ export default function App() {
       if (w === screenW && h === screenH) {
         zoom = 1.0;
       } else {
-        zoom = Math.min((screenW - 100) / w, (screenH - 100) / h);
+        // Reservamos margens maiores: 120px na largura (60px esq/dir) e 180px na altura (80px topo, 100px rodapé)
+        // para garantir que a prancheta nunca seja sobreposta pelos menus flutuantes de baixo (76px de altura).
+        zoom = Math.min((screenW - 120) / w, (screenH - 180) / h);
       }
     }
 
@@ -436,42 +467,51 @@ export default function App() {
   const handleDeleteSelected = useCallback(() => {
     const fc = fabricRef.current;
     if (!fc) return;
-    const active = fc.getActiveObject();
-    if (active) {
-      fc.remove(active);
+    const activeObjects = fc.getActiveObjects();
+    if (activeObjects && activeObjects.length > 0) {
+      activeObjects.forEach(obj => {
+        fc.remove(obj);
+      });
       fc.discardActiveObject();
       fc.renderAll();
     }
   }, []);
  
-  // ── Limpar toda a prancheta virtual ──────────────────────────────────────
+  const executeClearCanvas = useCallback(() => {
+    const fc = fabricRef.current;
+    if (!fc) return;
+    fc.clear();
+    fc.backgroundColor = null;
+    fc.renderAll();
+    
+    setArtboardColor('#fafafa');
+    setIsBlueprint(false);
+    
+    saveHistory();
+    updateLinksList();
+    
+    setHasSelection(false);
+    setIsGrayscaleActive(false);
+    
+    setVirtualW(window.innerWidth);
+    setVirtualH(window.innerHeight);
+    
+    setTimeout(() => {
+      const z = centerAndFit();
+      setZoomLevel(z);
+    }, 50);
+  }, [saveHistory, updateLinksList, centerAndFit]);
+
   const handleClearCanvas = useCallback(() => {
     const fc = fabricRef.current;
     if (!fc) return;
-    const confirmClear = window.confirm("Deseja realmente limpar toda a prancheta? Todas as imagens e referências serão apagadas.");
-    if (confirmClear) {
-      fc.clear();
-      fc.backgroundColor = null;
-      fc.renderAll();
-      
-      setArtboardColor('#fafafa');
-      setIsBlueprint(false);
-      
-      saveHistory();
-      updateLinksList();
-      
-      setHasSelection(false);
-      setIsGrayscaleActive(false);
-      
-      setVirtualW(window.innerWidth);
-      setVirtualH(window.innerHeight);
-      
-      setTimeout(() => {
-        const z = centerAndFit();
-        setZoomLevel(z);
-      }, 50);
+    const hasImages = fc.getObjects().filter(o => o.get('meta')).length > 0;
+    if (hasImages) {
+      setShowClearConfirmModal(true);
+    } else {
+      executeClearCanvas();
     }
-  }, [saveHistory, updateLinksList, centerAndFit]);
+  }, [executeClearCanvas]);
 
   // ── Conversor e validador de imagem (Suporte HEIC) ──────────────────────
   const processImageFile = async (file) => {
@@ -652,11 +692,18 @@ export default function App() {
     const objs = fc.getObjects().filter(o => o.get('meta'));
     if (objs.length === 0) return;
 
-    const avgSize = objs.reduce((sum, obj) => {
-      const w = obj.width * obj.scaleX;
-      const h = obj.height * obj.scaleY;
-      return sum + Math.min(w, h);
-    }, 0) / objs.length;
+    // Reorganização aleatória (embaralha os objetos para criar layouts diferentes a cada clique)
+    const sortedObjs = [...objs];
+    for (let i = sortedObjs.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [sortedObjs[i], sortedObjs[j]] = [sortedObjs[j], sortedObjs[i]];
+    }
+
+    // Calcula tamanho médio robusto usando o retângulo delimitador (getBoundingRect)
+    const avgSize = sortedObjs.reduce((sum, obj) => {
+      const rect = obj.getBoundingRect(true);
+      return sum + Math.min(rect.width, rect.height);
+    }, 0) / sortedObjs.length;
     
     const padding = Math.max(30, Math.min(100, Math.round(avgSize * 0.12)));
     const maxRowW = virtualWRef.current * 0.8;
@@ -669,9 +716,10 @@ export default function App() {
 
     fc.discardActiveObject();
 
-    objs.forEach((obj) => {
-      const w = obj.width * obj.scaleX;
-      const h = obj.height * obj.scaleY;
+    sortedObjs.forEach((obj) => {
+      const rect = obj.getBoundingRect(true);
+      const w = rect.width;
+      const h = rect.height;
 
       if (curX + w > startX + maxRowW && curX > startX) {
         curY += rowH + padding;
@@ -679,10 +727,13 @@ export default function App() {
         rowH = 0;
       }
 
+      const deltaLeft = obj.left - rect.left;
+      const deltaTop = obj.top - rect.top;
+
       const startLeft = obj.left;
       const startTop = obj.top;
-      const targetLeft = curX;
-      const targetTop = curY;
+      const targetLeft = curX + deltaLeft;
+      const targetTop = curY + deltaTop;
 
       fabric.util.animate({
         startValue: 0,
@@ -703,13 +754,20 @@ export default function App() {
       curX += w + padding;
     });
 
-    const totalRequiredH = curY + rowH + virtualHRef.current * 0.1;
+    // Altura total requerida inclui um espaço extra generoso de margem para evitar menus inferiores
+    const totalRequiredH = curY + rowH + Math.max(150, virtualHRef.current * 0.15);
     if (totalRequiredH > virtualHRef.current) {
       setVirtualH(Math.round(totalRequiredH));
+    } else {
+      // Força o ajuste de centralização caso a prancheta não precise crescer
+      setTimeout(() => {
+        const z = centerAndFit();
+        setZoomLevel(z);
+      }, 550);
     }
 
     saveHistory();
-  }, [saveHistory]);
+  }, [saveHistory, centerAndFit]);
   // ════════════════════════════════════════════════════════════════════════
   // Inicialização do canvas (uma única vez)
   // ════════════════════════════════════════════════════════════════════════
@@ -894,6 +952,10 @@ export default function App() {
     // ── Redimensionamento da janela ────────────────────────────────────────
     const onResize = () => {
       fc.setDimensions({ width: window.innerWidth, height: window.innerHeight });
+      if (!isManuallyScaledRef.current) {
+        setVirtualW(window.innerWidth);
+        setVirtualH(window.innerHeight);
+      }
       const z = centerAndFit();
       setZoomLevel(z);
     };
@@ -1095,7 +1157,9 @@ export default function App() {
 
     // ── Prevenção de Saída ────────────────────────────────────────────────
     const handleBeforeUnload = (e) => {
-      if (hasUnsavedChangesRef.current) {
+      const fc = fabricRef.current;
+      const hasImages = fc && fc.getObjects().filter(o => o.get('meta')).length > 0;
+      if (hasUnsavedChangesRef.current || hasImages) {
         e.preventDefault();
         e.returnValue = '';
         return '';
@@ -1136,7 +1200,7 @@ export default function App() {
       'chalkboard': '#1A1A1A',
       'cutting-green': '#0F3A2E',
       'sketch-paper': '#F4EBD9',
-      'cutting-gray': '#2B2D30'
+      'off-white': '#F5F5F5'
     };
     
     if (isBlueprint && gridBoardType === type) {
@@ -1169,21 +1233,6 @@ export default function App() {
     }, 200);
   }, []);
 
-  const handleEyeDropper = useCallback(async () => {
-    if (!('EyeDropper' in window)) {
-      alert('Seu navegador não suporta a ferramenta de conta-gotas.');
-      return;
-    }
-    try {
-      const eyeDropper = new window.EyeDropper();
-      const result = await eyeDropper.open();
-      const color = result.sRGBHex;
-      handleColorChange(color);
-    } catch (e) {
-      console.warn('Conta-gotas cancelado ou falhou:', e);
-    }
-  }, [handleColorChange]);
-
   const handleSetActiveTool = useCallback((tool) => {
     setActiveTool(tool);
     const fc = fabricRef.current;
@@ -1213,39 +1262,18 @@ export default function App() {
   }, []);
 
   const toggleFullscreen = () => {
-    if (fullscreenMode === 0) {
-      document.documentElement.requestFullscreen({ navigationUI: 'show' }).then(() => {
-        setFullscreenMode(1);
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().then(() => {
         setIsFullscreen(true);
       }).catch(err => {
-        console.error("Erro ao ativar tela inteira (navigationUI: show):", err);
-        document.documentElement.requestFullscreen().then(() => {
-          setFullscreenMode(1);
-          setIsFullscreen(true);
-        });
-      });
-    } else if (fullscreenMode === 1) {
-      document.documentElement.requestFullscreen({ navigationUI: 'hide' }).then(() => {
-        setFullscreenMode(2);
-        setIsFullscreen(true);
-      }).catch(err => {
-        console.error("Erro ao transicionar para tela inteira total (navigationUI: hide):", err);
-        setFullscreenMode(2);
+        console.error("Erro ao ativar tela inteira:", err);
       });
     } else {
-      if (document.fullscreenElement) {
-        document.exitFullscreen().then(() => {
-          setFullscreenMode(0);
-          setIsFullscreen(false);
-        }).catch(err => {
-          console.error("Erro ao sair da tela inteira:", err);
-          setFullscreenMode(0);
-          setIsFullscreen(false);
-        });
-      } else {
-        setFullscreenMode(0);
+      document.exitFullscreen().then(() => {
         setIsFullscreen(false);
-      }
+      }).catch(err => {
+        console.error("Erro ao sair da tela inteira:", err);
+      });
     }
   };
 
@@ -1303,11 +1331,13 @@ export default function App() {
   };
 
   const scaleSheet = (factor) => {
+    isManuallyScaledRef.current = true;
     setVirtualW(w => Math.max(200, Math.round(w * factor)));
     setVirtualH(h => Math.max(150, Math.round(h * factor)));
   };
 
   const fitToScreen = () => {
+    isManuallyScaledRef.current = false;
     setVirtualW(window.innerWidth);
     setVirtualH(window.innerHeight);
   };
@@ -1482,6 +1512,17 @@ export default function App() {
     hasUnsavedChangesRef.current = false;
   };
 
+  const handleClearConfirmWithSave = () => {
+    handleSaveJSON();
+    executeClearCanvas();
+    setShowClearConfirmModal(false);
+  };
+
+  const handleClearConfirmWithoutSave = () => {
+    executeClearCanvas();
+    setShowClearConfirmModal(false);
+  };
+
   const getMeta = () =>
     fabricRef.current?.getObjects().filter(o => o.get('meta')).map(o => o.get('meta')) ?? [];
 
@@ -1497,17 +1538,11 @@ export default function App() {
       <div className={`panel-top-right mat${showLinksDrawer && !isUiHidden ? ' drawer-open' : ''}`}>
         <button
           className="icon-btn"
-          title={
-            fullscreenMode === 0 ? "Tela Inteira (Abas Visíveis)" :
-            fullscreenMode === 1 ? "Tela Inteira (Ocultar Abas)" :
-            "Sair da Tela Inteira"
-          }
+          title={isFullscreen ? "Sair da Tela Inteira" : "Tela Inteira"}
           onClick={toggleFullscreen}
-          onContextMenu={(e) => handleRightClickHelp(e, "Tela Inteira", "Alterna a visualização da tela entre o modo normal, tela cheia com abas visíveis (se suportado pelo navegador) e tela cheia total.")}
+          onContextMenu={(e) => handleRightClickHelp(e, "Tela Inteira", "Alterna a visualização da tela entre o modo normal e o modo de tela inteira.")}
         >
-          {fullscreenMode === 0 && <Expand size={18} strokeWidth={1.75} />}
-          {fullscreenMode === 1 && <Maximize size={18} strokeWidth={1.75} style={{ color: 'var(--blue)' }} />}
-          {fullscreenMode === 2 && <Shrink size={18} strokeWidth={1.75} style={{ color: 'var(--blue)' }} />}
+          {isFullscreen ? <Shrink size={18} strokeWidth={1.75} style={{ color: 'var(--blue)' }} /> : <Expand size={18} strokeWidth={1.75} />}
         </button>
 
         <button
@@ -1528,7 +1563,7 @@ export default function App() {
       >
         <span className="app-title-bold">Artero</span>
         <span className="app-title-beta">Open Beta</span>
-        <span className="app-title-v1-pill">V1</span>
+        <span className="app-title-v1-pill">V2</span>
       </button>
 
       {/* ═══════════════════════════════════════════════
@@ -1561,9 +1596,9 @@ export default function App() {
           <ImagePlus size={18} strokeWidth={1.75} />
         </button>
 
-        <button className="icon-btn" title="Auto-Organizar Imagens (Smart Grid)"
+        <button className="icon-btn" title="Auto-Organizar Imagens (Magic Grid)"
           onClick={packObjects}
-          onContextMenu={(e) => handleRightClickHelp(e, "Smart Grid (Auto-Organizar)", "Alinha e organiza todas as imagens na prancheta automaticamente em fileiras perfeitas com espaçamento proporcional uniforme.")}
+          onContextMenu={(e) => handleRightClickHelp(e, "Magic Grid (Auto-Organizar)", "Alinha e organiza todas as imagens na prancheta automaticamente em fileiras perfeitas com espaçamento proporcional uniforme.")}
         >
           <LayoutGrid size={18} strokeWidth={1.75} />
         </button>
@@ -1612,18 +1647,6 @@ export default function App() {
           <Link size={18} strokeWidth={1.75} />
         </button>
 
-        <div className="bar-sep" />
-
-        {/* Conta-gotas */}
-        <button
-          className="icon-btn"
-          title="Conta-gotas (Copiar Cor)"
-          onClick={handleEyeDropper}
-          onContextMenu={(e) => handleRightClickHelp(e, "Conta-gotas", "Ativa o conta-gotas para capturar qualquer cor da tela, definindo-a como fundo e salvando o HEX no clipboard (Ctrl+C).")}
-        >
-          <Pipette size={17} strokeWidth={1.75} />
-        </button>
-
         {/* Cor da prancheta */}
         <div className="color-slot" onContextMenu={(e) => handleRightClickHelp(e, "Cor da Prancheta", "Abre o seletor de cores para alterar a cor de fundo do seu canvas.")}>
           <div className="color-ring" role="button" tabIndex={0}
@@ -1654,8 +1677,8 @@ export default function App() {
             width: '14px',
             height: '14px',
             borderRadius: '50%',
-            border: `1.5px solid ${isGrayscaleActive ? 'var(--blue)' : 'var(--label-2)'}`,
-            background: `linear-gradient(135deg, ${isGrayscaleActive ? 'var(--blue)' : 'var(--label-2)'} 50%, transparent 50%)`,
+            border: `1.5px solid ${isGrayscaleActive ? '#FFFFFF' : 'var(--label-2)'}`,
+            background: `linear-gradient(135deg, ${isGrayscaleActive ? '#FFFFFF' : 'var(--label-2)'} 50%, transparent 50%)`,
             display: 'inline-block',
             transition: 'all 0.15s ease'
           }} />
@@ -1734,7 +1757,7 @@ export default function App() {
         <div className="bar-sep" />
 
         {/* Escolha de Quadro / Prancha */}
-        <div className="grid-board-slot" onContextMenu={(e) => handleRightClickHelp(e, "Quadros e Pranchas", "Escolha entre diferentes estilos de quadros milimetrados, como Blueprint, Quadro Negro, Quadro Verde de giz/corte, Papel de Esboço ou Prancha Cinza.")}>
+        <div className="grid-board-slot" onContextMenu={(e) => handleRightClickHelp(e, "Quadros e Pranchas", "Escolha entre diferentes estilos de quadros milimetrados, como Blueprint, Quadro Negro, Quadro Verde de giz/corte, Papel de Esboço ou Off-White.")}>
           <button
             className={`icon-btn${isBlueprint ? ' is-active' : ''}`}
             title="Escolher Quadro / Prancha"
@@ -1744,8 +1767,8 @@ export default function App() {
           </button>
           {showGridMenu && (
             <div className="grid-bubbles">
-              <button className={`bubble-btn${gridBoardType === 'cutting-gray' && isBlueprint ? ' is-active' : ''}`} title="Prancha de Corte (Cinza)" onClick={() => selectGridBoard('cutting-gray')}>
-                <span className="color-dot" style={{ backgroundColor: '#2B2D30', width: '14px', height: '14px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.2)' }} />
+              <button className={`bubble-btn${gridBoardType === 'off-white' && isBlueprint ? ' is-active' : ''}`} title="Prancha Off-White (Grid)" onClick={() => selectGridBoard('off-white')}>
+                <span className="color-dot" style={{ backgroundColor: '#F5F5F5', width: '14px', height: '14px', borderRadius: '50%', border: '1px solid rgba(0,0,0,0.15)' }} />
               </button>
               <button className={`bubble-btn${gridBoardType === 'sketch-paper' && isBlueprint ? ' is-active' : ''}`} title="Papel Milimetrado (Esboço Creme)" onClick={() => selectGridBoard('sketch-paper')}>
                 <span className="color-dot" style={{ backgroundColor: '#F4EBD9', width: '14px', height: '14px', borderRadius: '50%', border: '1px solid rgba(0,0,0,0.15)' }} />
@@ -1897,7 +1920,7 @@ export default function App() {
           <div 
             className="onboarding-modal" 
             onClick={(e) => e.stopPropagation()}
-            style={{ height: `${[380, 460, 440, 620, 460, 480][activeOnboardingSlide]}px` }}
+            style={{ height: `${[390, 490, 460, 620, 460, 460, 440][activeOnboardingSlide]}px` }}
           >
             <button className="onboarding-close-btn" onClick={() => setShowOnboarding(false)} title="Fechar Onboarding">
               <X size={16} strokeWidth={2} />
@@ -1911,13 +1934,13 @@ export default function App() {
                 {/* Slide 1: Apresentação */}
                 <div className="onboarding-slide">
                   <div className="onboarding-icon-banner">
-                    <span className="onboarding-logo-pill">V1</span>
+                    <span className="onboarding-logo-pill">V2</span>
                     <div className="onboarding-app-logo">
                       <span className="app-title-bold" style={{ fontSize: '32px' }}>Artero</span>
                       <span className="app-title-beta" style={{ fontSize: '18px', marginLeft: '6px' }}>Open Beta</span>
                     </div>
                   </div>
-                  <h2 className="onboarding-title">Sua Prancheta Visual Minimalista</h2>
+                  <h2 className="onboarding-title">Seu Mural Aberto de Inspirações</h2>
                   <p className="onboarding-desc">
                     O Artero é o painel mais simples do mundo para colagem de referências e criação de moodboards. Ele oferece uma tela infinita e livre de distrações, projetada para manter você focado no seu fluxo criativo.
                   </p>
@@ -1970,7 +1993,7 @@ export default function App() {
                     
                     <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
                       <div className="feature-icon">
-                        <Move size={18} />
+                        <Pointer size={18} />
                       </div>
                       <div className="feature-details">
                         <span className="feature-name">Arrastar & Soltar Global</span>
@@ -2008,9 +2031,33 @@ export default function App() {
                       <div className="feature-icon">
                         <Grid size={18} />
                       </div>
-                      <div className="feature-details">
+                      <div className="feature-details" style={{ width: '100%' }}>
                         <span className="feature-name">Quadros e Grades Técnicas</span>
-                        <span className="feature-desc">Escolha entre 5 tipos de pranchetas (Blueprint, Giz Negro/Verde, Papel Creme e Corte) no menu do botão Grid.</span>
+                        <span className="feature-desc">Escolha o estilo de prancheta ideal clicando no menu do botão Grid:</span>
+                        
+                        {/* Grid de Cores/Pranchetas do Onboarding */}
+                        <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--fill-1)', padding: '5px 10px', borderRadius: '14px', fontSize: '11px', border: '1px solid var(--separator)', color: 'var(--label)' }}>
+                            <span style={{ backgroundColor: '#0041BA', width: '12px', height: '12px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.2)' }} />
+                            <strong>Blueprint</strong>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--fill-1)', padding: '5px 10px', borderRadius: '14px', fontSize: '11px', border: '1px solid var(--separator)', color: 'var(--label)' }}>
+                            <span style={{ backgroundColor: '#1A1A1A', width: '12px', height: '12px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.2)' }} />
+                            <strong>Giz Negro</strong>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--fill-1)', padding: '5px 10px', borderRadius: '14px', fontSize: '11px', border: '1px solid var(--separator)', color: 'var(--label)' }}>
+                            <span style={{ backgroundColor: '#0F3A2E', width: '12px', height: '12px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.2)' }} />
+                            <strong>Giz/Corte Verde</strong>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--fill-1)', padding: '5px 10px', borderRadius: '14px', fontSize: '11px', border: '1px solid var(--separator)', color: 'var(--label)' }}>
+                            <span style={{ backgroundColor: '#F4EBD9', width: '12px', height: '12px', borderRadius: '50%', border: '1px solid rgba(0,0,0,0.15)' }} />
+                            <strong>Papel Creme</strong>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--fill-1)', padding: '5px 10px', borderRadius: '14px', fontSize: '11px', border: '1px solid var(--separator)', color: 'var(--label)' }}>
+                            <span style={{ backgroundColor: '#F5F5F5', width: '12px', height: '12px', borderRadius: '50%', border: '1px solid rgba(0,0,0,0.15)' }} />
+                            <strong>Off-White</strong>
+                          </div>
+                        </div>
                       </div>
                     </div>
                     <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
@@ -2030,7 +2077,7 @@ export default function App() {
                   <h2 className="onboarding-title">Atalhos de Mouse & Teclado</h2>
                   
                   {/* Bloco 1: Atalhos de Mouse */}
-                  <h3 className="onboarding-subtitle" style={{ fontSize: '12px', fontWeight: '700', color: 'var(--blue)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>Atalhos de Mouse</h3>
+                  <h3 className="onboarding-subtitle" style={{ fontSize: '12px', fontWeight: '700', color: 'var(--blue)', letterSpacing: '0.5px', marginBottom: '8px' }}>Atalhos de mouse</h3>
                   <div className="onboarding-features-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '8px' }}>
                     <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
                       <span className="feature-kbd-icon">Mouse Dir</span>
@@ -2062,11 +2109,8 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Linha divisória horizontal */}
-                  <div style={{ borderTop: '1px solid var(--separator)', margin: '10px 0 12px 0', opacity: 0.5 }} />
-
                   {/* Bloco 2: Atalhos de Teclado */}
-                  <h3 className="onboarding-subtitle" style={{ fontSize: '12px', fontWeight: '700', color: 'var(--blue)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>Atalhos de Teclado</h3>
+                  <h3 className="onboarding-subtitle" style={{ fontSize: '12px', fontWeight: '700', color: 'var(--blue)', letterSpacing: '0.5px', marginTop: '12px', marginBottom: '8px' }}>Atalhos de teclado</h3>
                   <div className="onboarding-features-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
                       <span className="feature-kbd-icon">V / H</span>
@@ -2108,7 +2152,7 @@ export default function App() {
                         <LayoutGrid size={18} />
                       </div>
                       <div className="feature-details">
-                        <span className="feature-name">Auto-organização (Smart Grid)</span>
+                        <span className="feature-name">Auto-organização (Magic Grid)</span>
                         <span className="feature-desc">Organize todas as imagens em fileiras alinhadas instantaneamente com um clique.</span>
                       </div>
                     </div>
@@ -2117,7 +2161,7 @@ export default function App() {
                         <Maximize size={18} />
                       </div>
                       <div className="feature-details">
-                        <span className="feature-name">Magic Zoom (Enquadrar Tudo)</span>
+                        <span className="feature-name">Enquadrar Tudo (Magic Zoom)</span>
                         <span className="feature-desc">Centraliza e ajusta o zoom automaticamente para enquadrar todas as imagens na tela com margem simétrica.</span>
                       </div>
                     </div>
@@ -2135,7 +2179,7 @@ export default function App() {
                         <Contrast size={18} />
                       </div>
                       <div className="feature-details">
-                        <span className="feature-name">Modo Preto e Branco (Monocromático)</span>
+                        <span className="feature-name">Seleção Preto e Branco (Monocromático)</span>
                         <span className="feature-desc">Aplique filtros preto e branco nas imagens selecionadas com o botão de contraste no painel inferior.</span>
                       </div>
                     </div>
@@ -2185,6 +2229,53 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* Slide 7: Desenvolvedores & Ecossistema */}
+                <div className="onboarding-slide">
+                  <h2 className="onboarding-title">Desenvolvedores & Ecossistema</h2>
+                  <div className="onboarding-features-list" style={{ gap: '14px' }}>
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
+                      <div className="feature-icon" style={{ fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        🇧🇷
+                      </div>
+                      <div className="feature-details">
+                        <span className="feature-name">Software Livre & Brasileiro</span>
+                        <span className="feature-desc">
+                          O Artero open beta é um projeto aberto (open source) de uma empresa brasileira chamada <strong>Pragmatas Serviços Criativos</strong>.
+                        </span>
+                      </div>
+                    </div>
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
+                      <div className="feature-icon">
+                        <LayoutGrid size={18} />
+                      </div>
+                      <div className="feature-details">
+                        <span className="feature-name">Pacote TRAMA</span>
+                        <span className="feature-desc">
+                          O Artero Open Beta é parte da TRAMA (Tecnologias e Recursos Abertos para Mídias e Artes), um conjunto de websoftwares que serão criados e distribuídos pensados na realidade e soberania digital brasileira.
+                        </span>
+                      </div>
+                    </div>
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
+                      <div className="feature-icon">
+                        <Coffee size={18} style={{ color: '#C88B55' }} />
+                      </div>
+                      <div className="feature-details">
+                        <span className="feature-name">Apoie o Desenvolvimento</span>
+                        <span className="feature-desc">
+                          Pague um cafezinho para a equipe! <a href="#apoie" onClick={(e) => e.preventDefault()} style={{ color: 'var(--blue)', textDecoration: 'underline', fontWeight: '500' }}>Fazer uma contribuição</a>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Assinatura discreta centralizada no respiro */}
+                  <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingTop: '16px' }}>
+                    <div style={{ textAlign: 'center', fontSize: '11px', color: 'var(--label-3)', opacity: 0.8, letterSpacing: '-0.2px' }}>
+                      Desenvolvido por <strong>João Conrado</strong> e revisado por <strong>João Tarran</strong>
+                    </div>
+                  </div>
+                </div>
+
               </div>
             </div>
 
@@ -2198,7 +2289,7 @@ export default function App() {
               </button>
 
               <div className="onboarding-dots">
-                {[0, 1, 2, 3, 4, 5].map((idx) => (
+                {[0, 1, 2, 3, 4, 5, 6].map((idx) => (
                   <button 
                     key={idx} 
                     className={`onboarding-dot${activeOnboardingSlide === idx ? ' is-active' : ''}`}
@@ -2208,7 +2299,7 @@ export default function App() {
                 ))}
               </div>
 
-              {activeOnboardingSlide < 5 ? (
+              {activeOnboardingSlide < 6 ? (
                 <button 
                   className="onboarding-nav-btn fill" 
                   onClick={() => setActiveOnboardingSlide(s => s + 1)}
@@ -2224,6 +2315,51 @@ export default function App() {
                 </button>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════
+          JANELA DE CONFIRMAÇÃO DE LIMPEZA (CLEAR MODAL)
+          ═══════════════════════════════════════════════ */}
+      {showClearConfirmModal && (
+        <div className="onboarding-overlay" onClick={() => setShowClearConfirmModal(false)}>
+          <div className="exit-modal mat" onClick={(e) => e.stopPropagation()}>
+            <button className="onboarding-close-btn" onClick={() => setShowClearConfirmModal(false)} title="Cancelar">
+              <X size={16} strokeWidth={2} />
+            </button>
+            
+            <h2 className="exit-modal-title">Limpar toda a Prancheta?</h2>
+            <p className="exit-modal-desc">
+              Deseja salvar suas referências em um arquivo editável (.json) de backup antes de apagar tudo?
+            </p>
+            
+            <div className="exit-modal-buttons">
+              <button className="exit-btn save" onClick={handleClearConfirmWithSave}>
+                <FileJson size={16} strokeWidth={2} style={{ marginRight: '6px' }} />
+                Salvar JSON e Limpar
+              </button>
+              <button className="exit-btn discard" onClick={handleClearConfirmWithoutSave}>
+                Limpar sem Salvar
+              </button>
+              <button className="exit-btn cancel" onClick={() => setShowClearConfirmModal(false)}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════
+          JANELA DE AVISO MOBILE (MOBILE WARNING)
+          ═══════════════════════════════════════════════ */}
+      {isMobileWarningVisible && (
+        <div className="onboarding-overlay" style={{ zIndex: 9999 }}>
+          <div className="exit-modal mat" style={{ textAlign: 'center', padding: '40px' }}>
+            <h2 className="exit-modal-title">Aviso de Compatibilidade</h2>
+            <p className="exit-modal-desc" style={{ marginBottom: 0 }}>
+              O Artero foi projetado para uso em computadores (desktop/notebook). Para ter acesso a todas as ferramentas e uma melhor experiência de prancheta, acesse através de uma tela maior.
+            </p>
           </div>
         </div>
       )}

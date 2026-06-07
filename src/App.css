@@ -10,7 +10,7 @@
   --sys-bg:          #F2F2F7;
   --canvas-bg:       #E5E5EA;
 
-  --mat:             rgba(255, 255, 255, 0.82);
+  --mat:             rgba(255, 255, 255, 0.92);
   --mat-border:      rgba(60, 60, 67, 0.18);
 
   --label:           #000000;
@@ -24,6 +24,7 @@
   --fill-3:          rgba(118, 118, 128, 0.12);
 
   --blue:            #007AFF;
+  --red:             #FF3B30;
 
   --shadow:          0 4px 20px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
   --shadow-float:    0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
@@ -36,7 +37,7 @@
   --sys-bg:          #000000;
   --canvas-bg:       #1C1C1E;
 
-  --mat:             rgba(28, 28, 30, 0.85);
+  --mat:             rgba(28, 28, 30, 0.95);
   --mat-border:      rgba(255, 255, 255, 0.12);
 
   --label:           #FFFFFF;
@@ -50,6 +51,7 @@
   --fill-3:          rgba(118, 118, 128, 0.18);
 
   --blue:            #0A84FF;
+  --red:             #FF453A;
 
   --shadow:          0 4px 20px rgba(0,0,0,0.45), 0 1px 4px rgba(0,0,0,0.25);
   --shadow-float:    0 8px 32px rgba(0,0,0,0.60), 0 2px 8px rgba(0,0,0,0.40);
@@ -1069,15 +1071,17 @@ body {
     linear-gradient(90deg, rgba(139, 90, 43, 0.10) 1px, transparent 1px);
 }
 
-/* Cutting Mat Gray (Cinza) */
-.app-root.grid-cutting-gray {
-  background-color: #2B2D30 !important;
+/* Off-white Grid */
+.app-root.grid-off-white {
+  background-color: #F5F5F5 !important;
   background-image: 
-    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+    linear-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+    linear-gradient(rgba(0, 0, 0, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.06) 1px, transparent 1px);
 }
+
+
 
 .grid-board-slot {
   position: relative;
@@ -1316,3 +1320,84 @@ body {
   }
 }
 
+/* ── Exit Modal ─────────────────────────────────────────────────────────── */
+.exit-modal {
+  width: 320px;
+  background: var(--onboarding-bg);
+  border: 1px solid var(--mat-border);
+  border-radius: 24px;
+  padding: 32px 24px 24px 24px;
+  box-shadow: var(--shadow-float);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  animation: scaleInOnboard 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.exit-modal-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--label);
+  margin-bottom: 12px;
+  letter-spacing: -0.4px;
+}
+
+.exit-modal-desc {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--label-2);
+  margin-bottom: 24px;
+  max-width: 280px;
+}
+
+.exit-modal-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.exit-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 12px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.exit-btn:active {
+  transform: scale(0.98);
+}
+
+.exit-btn.save {
+  background: var(--blue);
+  color: #FFFFFF;
+}
+.exit-btn.save:hover {
+  filter: brightness(1.05);
+}
+
+.exit-btn.discard {
+  background: rgba(255, 59, 48, 0.1);
+  color: var(--red);
+  border: 1px solid rgba(255, 59, 48, 0.2);
+}
+.exit-btn.discard:hover {
+  background: rgba(255, 59, 48, 0.15);
+}
+
+.exit-btn.cancel {
+  background: var(--fill-2);
+  color: var(--label);
+}
+.exit-btn.cancel:hover {
+  background: var(--fill);
+}
