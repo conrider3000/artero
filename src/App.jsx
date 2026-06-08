@@ -5,7 +5,7 @@ import {
   ExternalLink, Download, FileText, Info, FileJson,
   Minus, Plus, Link, Undo2, Redo2, Trash2, Contrast, LayoutGrid,
   Eraser, Maximize, Grid, Hand, Expand, Shrink, Eye, EyeOff,
-  Sun, Moon, Clipboard, Move, Pointer, Heart, Coffee
+  Sun, Moon, Clipboard, Move, Pointer, Heart, Coffee, ArrowUpToLine, ArrowDownToLine
 } from 'lucide-react';
 import { HexColorPicker } from 'react-colorful';
 import { jsPDF } from 'jspdf';
@@ -476,6 +476,31 @@ export default function App() {
       fc.renderAll();
     }
   }, []);
+  
+  // ── Controle de Z-Index (Trazer para frente / Enviar para trás) ───────────
+  const handleBringToFront = useCallback(() => {
+    const fc = fabricRef.current;
+    if (!fc) return;
+    const activeObjects = fc.getActiveObjects();
+    if (activeObjects && activeObjects.length > 0) {
+      activeObjects.forEach(obj => fc.bringToFront(obj));
+      fc.renderAll();
+      saveHistory();
+    }
+  }, [saveHistory]);
+
+  const handleSendToBack = useCallback(() => {
+    const fc = fabricRef.current;
+    if (!fc) return;
+    const activeObjects = fc.getActiveObjects();
+    if (activeObjects && activeObjects.length > 0) {
+      // Reverte para manter a ordem relativa ao enviar múltiplos para trás
+      const reversed = [...activeObjects].reverse();
+      reversed.forEach(obj => fc.sendToBack(obj));
+      fc.renderAll();
+      saveHistory();
+    }
+  }, [saveHistory]);
  
   const executeClearCanvas = useCallback(() => {
     const fc = fabricRef.current;
@@ -998,6 +1023,16 @@ export default function App() {
         handleDeleteSelected();
       }
 
+      if (e.key === ']' && activeObject) {
+        e.preventDefault();
+        handleBringToFront();
+      }
+
+      if (e.key === '[' && activeObject) {
+        e.preventDefault();
+        handleSendToBack();
+      }
+
       if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
         e.preventDefault();
         handleUndo();
@@ -1176,7 +1211,7 @@ export default function App() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       fc.dispose();
     };
-  }, [centerAndFit, handleDeleteSelected, handleUndo, handleRedo, saveHistory, updateSelection, updateLinksList, placeGif]);
+  }, [centerAndFit, handleDeleteSelected, handleBringToFront, handleSendToBack, handleUndo, handleRedo, saveHistory, updateSelection, updateLinksList, placeGif]);
 
   // ── Tamanho da prancheta virtual ──────────────────────────────────────────
   useEffect(() => {
@@ -1620,6 +1655,25 @@ export default function App() {
           onContextMenu={(e) => handleRightClickHelp(e, "Refazer (Ctrl+Shift+Z)", "Reaplica a última alteração desfeita.")}
         >
           <Redo2 size={18} strokeWidth={1.75} style={{ opacity: canRedo ? 1 : 0.4 }} />
+        </button>
+
+        <div className="bar-sep" />
+
+        {/* Z-Index */}
+        <button className="icon-btn" title="Trazer para Frente (])"
+          onClick={handleBringToFront}
+          disabled={!hasSelection}
+          onContextMenu={(e) => handleRightClickHelp(e, "Trazer para Frente (])", "Traz as imagens selecionadas para a camada mais alta da prancheta, ficando sobre as outras.")}
+        >
+          <ArrowUpToLine size={18} strokeWidth={1.75} style={{ opacity: hasSelection ? 1 : 0.4 }} />
+        </button>
+
+        <button className="icon-btn" title="Enviar para Trás ([)"
+          onClick={handleSendToBack}
+          disabled={!hasSelection}
+          onContextMenu={(e) => handleRightClickHelp(e, "Enviar para Trás ([)", "Envia as imagens selecionadas para a camada mais baixa da prancheta, ficando atrás das outras.")}
+        >
+          <ArrowDownToLine size={18} strokeWidth={1.75} style={{ opacity: hasSelection ? 1 : 0.4 }} />
         </button>
 
         {/* Lixeira */}
@@ -2138,6 +2192,13 @@ export default function App() {
                       <div className="feature-details">
                         <span className="feature-name">Desfazer/Refazer</span>
                         <span className="feature-desc">Desfaça ou refaça suas últimas alterações no canvas.</span>
+                      </div>
+                    </div>
+                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
+                      <span className="feature-kbd-icon">[ / ]</span>
+                      <div className="feature-details">
+                        <span className="feature-name">Z-Index (Camadas)</span>
+                        <span className="feature-desc">Use os colchetes para enviar a imagem selecionada para trás ou trazer para frente.</span>
                       </div>
                     </div>
                   </div>
