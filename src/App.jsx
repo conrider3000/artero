@@ -483,8 +483,16 @@ export default function App() {
     if (!fc) return;
     const activeObjects = fc.getActiveObjects();
     if (activeObjects && activeObjects.length > 0) {
+      fc.discardActiveObject();
       activeObjects.forEach(obj => fc.bringToFront(obj));
-      fc.renderAll();
+      
+      if (activeObjects.length === 1) {
+        fc.setActiveObject(activeObjects[0]);
+      } else {
+        const sel = new fabric.ActiveSelection(activeObjects, { canvas: fc });
+        fc.setActiveObject(sel);
+      }
+      fc.requestRenderAll();
       saveHistory();
     }
   }, [saveHistory]);
@@ -494,10 +502,17 @@ export default function App() {
     if (!fc) return;
     const activeObjects = fc.getActiveObjects();
     if (activeObjects && activeObjects.length > 0) {
-      // Reverte para manter a ordem relativa ao enviar múltiplos para trás
+      fc.discardActiveObject();
       const reversed = [...activeObjects].reverse();
       reversed.forEach(obj => fc.sendToBack(obj));
-      fc.renderAll();
+      
+      if (activeObjects.length === 1) {
+        fc.setActiveObject(activeObjects[0]);
+      } else {
+        const sel = new fabric.ActiveSelection(activeObjects, { canvas: fc });
+        fc.setActiveObject(sel);
+      }
+      fc.requestRenderAll();
       saveHistory();
     }
   }, [saveHistory]);
