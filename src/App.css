@@ -749,7 +749,7 @@ body {
   position: relative;
   margin: 0 32px;
   padding-top: 32px;
-  padding-bottom: 24px;
+  padding-bottom: 16px;
 }
 
 .onboarding-slides-track {
@@ -766,8 +766,6 @@ body {
   display: flex;
   flex-direction: column;
   padding-right: 12px;
-  overflow-y: auto;
-  overflow-x: hidden;
 }
 
 .onboarding-icon-banner {

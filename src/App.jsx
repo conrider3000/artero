@@ -2146,8 +2146,8 @@ export default function App() {
                   <h2 className="onboarding-title">Atalhos de Mouse & Teclado</h2>
                   
                   {/* Bloco 1: Atalhos de Mouse */}
-                  <h3 className="onboarding-subtitle" style={{ fontSize: '12px', fontWeight: '700', color: 'var(--blue)', letterSpacing: '0.5px', marginBottom: '8px' }}>Atalhos de mouse</h3>
-                  <div className="onboarding-features-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '8px' }}>
+                  <h3 className="onboarding-subtitle" style={{ fontSize: '12px', fontWeight: '700', color: 'var(--blue)', letterSpacing: '0.5px', marginBottom: '4px' }}>Atalhos de mouse</h3>
+                  <div className="onboarding-features-list" style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '6px' }}>
                     <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
                       <span className="feature-kbd-icon">Mouse Dir</span>
                       <div className="feature-details">
@@ -2179,8 +2179,8 @@ export default function App() {
                   </div>
 
                   {/* Bloco 2: Atalhos de Teclado */}
-                  <h3 className="onboarding-subtitle" style={{ fontSize: '12px', fontWeight: '700', color: 'var(--blue)', letterSpacing: '0.5px', marginTop: '12px', marginBottom: '8px' }}>Atalhos de teclado</h3>
-                  <div className="onboarding-features-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <h3 className="onboarding-subtitle" style={{ fontSize: '12px', fontWeight: '700', color: 'var(--blue)', letterSpacing: '0.5px', marginTop: '6px', marginBottom: '4px' }}>Atalhos de teclado</h3>
+                  <div className="onboarding-features-list" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
                       <span className="feature-kbd-icon">V / H</span>
                       <div className="feature-details">
