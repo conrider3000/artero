@@ -484,7 +484,7 @@ export default function App() {
     const activeObjects = fc.getActiveObjects();
     if (activeObjects && activeObjects.length > 0) {
       fc.discardActiveObject();
-      activeObjects.forEach(obj => fc.bringToFront(obj));
+      activeObjects.forEach(obj => fc.bringObjectToFront(obj));
       
       if (activeObjects.length === 1) {
         fc.setActiveObject(activeObjects[0]);
@@ -504,7 +504,7 @@ export default function App() {
     if (activeObjects && activeObjects.length > 0) {
       fc.discardActiveObject();
       const reversed = [...activeObjects].reverse();
-      reversed.forEach(obj => fc.sendToBack(obj));
+      reversed.forEach(obj => fc.sendObjectToBack(obj));
       
       if (activeObjects.length === 1) {
         fc.setActiveObject(activeObjects[0]);
