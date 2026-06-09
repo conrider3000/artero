@@ -332,8 +332,13 @@ export default function OnboardingModal({
               <h2 className="onboarding-title">Desenvolvedores & Ecossistema</h2>
               <div className="onboarding-features-list" style={{ gap: '14px' }}>
                 <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
-                  <div className="feature-icon" style={{ fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    🇧🇷
+                  <div className="feature-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg viewBox="0 0 720 504" style={{ width: '20px', height: '14px', borderRadius: '2px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                      <rect width="720" height="504" fill="#009b3a"/>
+                      <polygon points="360,61 659,252 360,443 61,252" fill="#fedf00"/>
+                      <circle cx="360" cy="252" r="130" fill="#002776"/>
+                      <path d="M230,290 Q360,195 490,290" fill="none" stroke="#ffffff" stroke-width="15"/>
+                    </svg>
                   </div>
                   <div className="feature-details">
                     <span className="feature-name">Software Livre & Brasileiro</span>
