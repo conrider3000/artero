@@ -1389,6 +1389,20 @@ export default function App() {
     setZoomLevel(z);
   }, [centerAndFit]);
 
+  // Dispara o Magic Zoom (Auto-Ajuste) automaticamente quando o status de tela cheia muda (entrada ou saída)
+  const isFirstFullscreenRender = useRef(true);
+  useEffect(() => {
+    if (isFirstFullscreenRender.current) {
+      isFirstFullscreenRender.current = false;
+      return;
+    }
+    // Delay de 250ms para aguardar a transição do navegador e o redimensionamento do canvas concluírem
+    const timer = setTimeout(() => {
+      handleFitContent();
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [isFullscreen, handleFitContent]);
+
   const toggleZoom100 = useCallback(() => {
     const fc = fabricRef.current;
     if (!fc) return;
