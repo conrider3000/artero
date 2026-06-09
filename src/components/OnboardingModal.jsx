@@ -39,7 +39,7 @@ export default function OnboardingModal({
               <p className="onboarding-desc">
                 O Artero é o painel mais simples do mundo para colagem de referências e criação de moodboards. Ele oferece uma tela infinita e livre de distrações, projetada para manter você focado no seu fluxo criativo.
               </p>
-              <p className="onboarding-desc" style={{ marginTop: '-12px', fontSize: '13px', color: 'var(--label-3)' }}>
+              <p className="onboarding-desc" style={{ marginTop: '-12px', fontSize: '13px', color: 'var(--label-2)' }}>
                 Clique nas bolinhas abaixo ou em Avançar para descobrir como interagir com o canvas.
               </p>
             </div>
@@ -362,7 +362,7 @@ export default function OnboardingModal({
             {heights.map((_, i) => (
               <span 
                 key={i} 
-                className={`onboarding-dot${activeSlide === i ? ' active' : ''}`}
+                className={`onboarding-dot${activeSlide === i ? ' is-active' : ''}`}
                 onClick={() => setActiveSlide(i)}
               />
             ))}
