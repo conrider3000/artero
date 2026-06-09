@@ -369,13 +369,13 @@ export default function OnboardingModal({
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button 
-              className="onboarding-btn-secondary" 
+              className="onboarding-nav-btn text" 
               onClick={onClose}
             >
               Pular
             </button>
             <button 
-              className="onboarding-btn-primary" 
+              className="onboarding-nav-btn fill accent" 
               onClick={() => {
                 if (activeSlide === heights.length - 1) {
                   onClose();
