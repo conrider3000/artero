@@ -1,16 +1,50 @@
-# React + Vite
+# Artero 🎨
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Uma plataforma interativa de moodboards e canvas 2D desenvolvida para ajudar você a organizar, colar e estruturar suas referências visuais de forma fluida e intuitiva.
 
-Currently, two official plugins are available:
+🚀 **Acesse o Open Beta:** [artero.vercel.app](https://artero.vercel.app)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## ✨ Funcionalidades
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Canvas Interativo:** Espaço livre e infinito para movimentação, redimensionamento e rotação de elementos.
+- **Upload de Imagens:** Arraste e solte ou faça upload de múltiplas imagens para o seu quadro de referências.
+- **Controle de Profundidade:** Organize as camadas trazendo elementos para frente ou enviando para trás com facilidade.
+- **Onboarding e Atalhos:** Guia interativo rápido integrado para navegação e controle ágil no canvas.
+- **Responsivo e Otimizado:** Layout moderno e adaptado para proporcionar a melhor experiência de design.
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## 🛠️ Tecnologias Utilizadas
+
+- **Front-end:** [React](https://react.dev/) + [Vite](https://vitejs.dev/)
+- **Manipulação de Canvas:** [Fabric.js v7](http://fabricjs.com/)
+- **Estilização:** CSS Moderno e Responsivo
+- **Hospedagem & Deploy:** [Vercel](https://vercel.com)
+
+---
+
+## 🚀 Como Executar Localmente
+
+### Pré-requisitos
+Certifique-se de ter o [Node.js](https://nodejs.org/) instalado em sua máquina.
+
+1. **Clonar o repositório:**
+   ```bash
+   git clone https://github.com/conrider3000/artero.git
+   cd artero
+   ```
+
+2. **Instalar as dependências:**
+   ```bash
+   npm install
+   ```
+
+3. **Iniciar o servidor de desenvolvimento:**
+   ```bash
+   npm run dev
+   ```
+
+4. **Acessar no navegador:**
+   Abra `http://localhost:5173` para visualizar o projeto rodando localmente.
