@@ -1,4 +1,4 @@
-import { X, ImagePlus, Pointer, Clipboard, Minus, Plus, Grid, Sun, LayoutGrid, Maximize, Link, Contrast, Save, FileText, FileJson, ExternalLink } from 'lucide-react';
+import { X, ImagePlus, Pointer, Clipboard, Minus, Plus, Grid, Sun, LayoutGrid, Maximize, Link, Contrast, Save, FileText, FileJson, ExternalLink, Coffee } from 'lucide-react';
 
 export default function OnboardingModal({ 
   show, 
@@ -337,20 +337,39 @@ export default function OnboardingModal({
                   </div>
                   <div className="feature-details">
                     <span className="feature-name">Software Livre & Brasileiro</span>
-                    <span className="feature-desc">Artero é orgulhosamente desenvolvido e mantido no Brasil.</span>
+                    <span className="feature-desc">
+                      O Artero open beta é um projeto aberto (open source) de uma empresa brasileira chamada <strong>Pragmatas Serviços Criativos</strong>.
+                    </span>
                   </div>
                 </div>
                 <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
                   <div className="feature-icon">
-                    <ExternalLink size={18} />
+                    <LayoutGrid size={18} />
                   </div>
                   <div className="feature-details">
-                    <span className="feature-name">Código Aberto</span>
-                    <span className="feature-desc">Acesse nosso repositório no GitHub para contribuir com melhorias ou clonar o projeto.</span>
-                    <a href="https://github.com/conrider3000/artero" target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '12px', marginTop: '6px', color: 'var(--blue)', textDecoration: 'none', fontWeight: '500' }}>
-                      <ExternalLink size={12} /> github.com/conrider3000/artero
-                    </a>
+                    <span className="feature-name">Pacote TRAMA</span>
+                    <span className="feature-desc">
+                      O Artero Open Beta é parte da TRAMA (Tecnologias e Recursos Abertos para Mídias e Artes), um conjunto de websoftwares que serão criados e distribuídos pensados na realidade e soberania digital brasileira.
+                    </span>
                   </div>
+                </div>
+                <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
+                  <div className="feature-icon">
+                    <Coffee size={18} style={{ color: '#C88B55' }} />
+                  </div>
+                  <div className="feature-details">
+                    <span className="feature-name">Apoie o Desenvolvimento</span>
+                    <span className="feature-desc">
+                      Pague um cafezinho para a equipe! <a href="#apoie" onClick={(e) => e.preventDefault()} style={{ color: 'var(--blue)', textDecoration: 'underline', fontWeight: '500' }}>Fazer uma contribuição</a>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Assinatura discreta centralizada no respiro */}
+              <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingTop: '16px' }}>
+                <div style={{ textAlign: 'center', fontSize: '11px', color: 'var(--label-3)', opacity: 0.8, letterSpacing: '-0.2px' }}>
+                  Desenvolvido por <strong>João Conrado</strong> e revisado por <strong>João Tarran</strong>
                 </div>
               </div>
             </div>
