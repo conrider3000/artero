@@ -11,132 +11,13 @@ import { HexColorPicker } from 'react-colorful';
 import { jsPDF } from 'jspdf';
 import './App.css';
 
-// ── Carregador dinâmico do heic2any (HEIC de iPhone) ──────────────────────────
-const loadHeic2Any = () => {
-  if (window.heic2any) return Promise.resolve(window.heic2any);
-  return new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = 'https://unpkg.com/heic2any@0.0.4/dist/heic2any.min.js';
-    script.onload = () => resolve(window.heic2any);
-    script.onerror = (e) => reject(new Error('Erro ao carregar heic2any: ' + e.message));
-    document.head.appendChild(script);
-  });
-};
-
-// ── Carregador dinâmico do gifler (GIFs Animados) ─────────────────────────────
-const loadGifler = () => {
-  if (window.gifler) return Promise.resolve(window.gifler);
-  return new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = 'https://unpkg.com/gifler@0.1.0/gifler.min.js';
-    script.onload = () => resolve(window.gifler);
-    script.onerror = (e) => reject(new Error('Erro ao carregar gifler: ' + e.message));
-    document.head.appendChild(script);
-  });
-};
-
-// ── Utilitários nativos do IndexedDB para Autosave (evita estouro de 5MB) ──────
-const DB_NAME = 'ArteroDB';
-const STORE_NAME = 'autosave';
-
-const getDB = () => {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
-    request.onupgradeneeded = (e) => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME);
-      }
-    };
-    request.onsuccess = (e) => resolve(e.target.result);
-    request.onerror = (e) => reject(e.target.error);
-  });
-};
-
-const saveToDB = async (key, val) => {
-  try {
-    const db = await getDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, 'readwrite');
-      const store = tx.objectStore(STORE_NAME);
-      const req = store.put(val, key);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-    });
-  } catch (e) {
-    console.error("IndexedDB Save Error:", e);
-  }
-};
-
-const getFromDB = async (key) => {
-  try {
-    const db = await getDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_NAME, 'readonly');
-      const store = tx.objectStore(STORE_NAME);
-      const req = store.get(key);
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
-  } catch (e) {
-    console.error("IndexedDB Get Error:", e);
-    return null;
-  }
-};
-
-// ── Identificador de arquivos de imagem (inclui HEIC) ───────────────────────
-const isImageFile = (file) => {
-  if (file.type && file.type.startsWith('image/')) return true;
-  if (file.type === 'image/heic') return true;
-  const ext = file.name.split('.').pop().toLowerCase();
-  const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'tiff', 'heic', 'ico'];
-  return imageExts.includes(ext);
-};
-
-// ── Presets ──────────────────────────────────────────────────────────────────
-const PRESETS = {
-  paper: [
-    { name: 'A5', width: 559,  height: 794,  desc: '148×210 mm' },
-    { name: 'A4', width: 794,  height: 1123, desc: '210×297 mm' },
-    { name: 'A3', width: 1123, height: 1587, desc: '297×420 mm' },
-    { name: 'A2', width: 1587, height: 2245, desc: '420×594 mm' },
-  ],
-  historical: [
-    { name: 'Daguerreótipo',   year: '1839', width: 624,  height: 812, desc: 'Placa inteira' },
-    { name: 'Carte de Visite', year: '1850', width: 225,  height: 375, desc: 'Retrato clássico' },
-    { name: 'Película 35mm',   year: '1913', width: 800,  height: 533, desc: 'Proporção 3:2' },
-    { name: 'Polaroid SX-70',  year: '1972', width: 600,  height: 600, desc: 'Quadrado analógico' },
-    { name: 'Foto 10×15',      year: '1980', width: 900,  height: 600, desc: 'Padrão revelação' },
-  ],
-  modern: [
-    { name: 'HD 720p',        year: '2000+', width: 1280, height: 720,  desc: 'Standard HD' },
-    { name: 'Full HD',        year: '2005+', width: 1920, height: 1080, desc: 'Padrão atual' },
-    { name: 'Insta Feed',     year: '2010+', width: 1080, height: 1080, desc: 'Quadrado 1:1' },
-    { name: 'Stories/TikTok', year: '2016+', width: 1080, height: 1920, desc: 'Vertical 9:16' },
-    { name: '4K UHD',         year: '2018+', width: 3840, height: 2160, desc: 'Ultra HD' },
-  ],
-};
-
-const formatBytes = (b) => {
-  if (!b) return 'N/A';
-  const k = 1024, s = ['B','KB','MB','GB'];
-  const i = Math.floor(Math.log(b) / Math.log(k));
-  return parseFloat((b / k ** i).toFixed(1)) + ' ' + s[i];
-};
-
-// ── Margens de fitZoom (espaço ocupado pela UI ao redor da prancheta) ────────
-const MARGIN_X = 80;
-const MARGIN_Y = 130;
-
-// ── Função pura: zoom mínimo para caber a prancheta na tela ─────────────────
-const fitZoom = (w, h) =>
-  Math.min((window.innerWidth - MARGIN_X) / w, (window.innerHeight - MARGIN_Y) / h);
-
-// ── Detecta modo noturno pela hora local ─────────────────────────────────────
-const isNightNow = () => {
-  const h = new Date().getHours();
-  return h >= 19 || h < 7;
-};
+import { loadHeic2Any, loadGifler } from './services/scriptLoader';
+import { getDB, saveToDB, getFromDB } from './services/db';
+import { isImageFile, PRESETS, formatBytes, MARGIN_X, MARGIN_Y, fitZoom, isNightNow } from './utils/canvasHelpers';
+import ClearConfirmModal from './components/ClearConfirmModal';
+import MobileWarning from './components/MobileWarning';
+import LinksDrawer from './components/LinksDrawer';
+import OnboardingModal from './components/OnboardingModal';
 
 // ── Aplica tema no <html> imediatamente (antes do primeiro render) ───────────
 document.documentElement.setAttribute('data-theme', 'dark');
@@ -740,13 +621,18 @@ export default function App() {
     }
 
     // Calcula tamanho médio robusto usando o retângulo delimitador (getBoundingRect)
+    let avgW = 0;
     const avgSize = sortedObjs.reduce((sum, obj) => {
       const rect = obj.getBoundingRect(true);
+      avgW += rect.width;
       return sum + Math.min(rect.width, rect.height);
     }, 0) / sortedObjs.length;
+    avgW = avgW / sortedObjs.length;
     
     const padding = Math.max(30, Math.min(100, Math.round(avgSize * 0.12)));
-    const maxRowW = virtualWRef.current * 0.8;
+    const cols = Math.ceil(Math.sqrt(sortedObjs.length));
+    const dynamicRowW = (avgW + padding) * cols;
+    const maxRowW = Math.max(virtualWRef.current * 0.8, dynamicRowW);
     const startX = virtualWRef.current * 0.1;
     const startY = virtualHRef.current * 0.1;
 
@@ -1263,6 +1149,13 @@ export default function App() {
       setGridBoardType(type);
       setArtboardColor(boardColors[type]);
       setIsBlueprint(true);
+      
+      // Muda o tema automaticamente dependendo da grade escolhida
+      if (['blueprint', 'chalkboard', 'cutting-green'].includes(type)) {
+        setIsDark(false); // modo day
+      } else {
+        setIsDark(true); // modo noite
+      }
     }
     setShowGridMenu(false);
   };
@@ -1911,535 +1804,40 @@ export default function App() {
       {/* ═══════════════════════════════════════════════
           SIDEBAR DESLIZANTE — LINKS ADICIONADOS
           ═══════════════════════════════════════════════ */}
-      {showLinksDrawer && (
-        <div className={`links-drawer mat${isUiHidden ? ' ui-hidden' : ''}`}>
-          <div className="links-drawer-header">
-            <span className="links-drawer-title">Links & Arquivos ({linksList.length})</span>
-            <button className="links-drawer-close" onClick={() => setShowLinksDrawer(false)}>
-              <X size={16} strokeWidth={1.75} />
-            </button>
-          </div>
-          <div className="links-drawer-list">
-            {linksList.length === 0 ? (
-              <span className="links-drawer-empty">Nenhum item adicionado ao workspace.</span>
-            ) : (
-              linksList.map((item) => (
-                <div key={item.id} className="links-drawer-item" onClick={() => focusObject(item.ref)}>
-                  <div className="links-drawer-info">
-                    <span className="links-drawer-name" title={item.meta.source}>
-                      {item.meta.source}
-                    </span>
-                    <div className="links-drawer-meta">
-                      <span>{item.meta.type}</span>
-                      <span>·</span>
-                      <span>{item.meta.size}</span>
-                    </div>
-                  </div>
-                  <div className="links-drawer-actions" onClick={(e) => e.stopPropagation()}>
-                    <button className="links-action-btn" title="Alternar Preto e Branco"
-                      onClick={() => toggleGrayscale(item.ref)}
-                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    >
-                      <span style={{
-                        width: '10px',
-                        height: '10px',
-                        borderRadius: '50%',
-                        border: `1.2px solid ${item.ref.get('isGrayscale') ? 'var(--blue)' : 'var(--label-2)'}`,
-                        background: `linear-gradient(135deg, ${item.ref.get('isGrayscale') ? 'var(--blue)' : 'var(--label-2)'} 50%, transparent 50%)`,
-                        display: 'inline-block',
-                        transition: 'all 0.15s ease'
-                      }} />
-                    </button>
-                    {item.meta.source.startsWith('http') && (
-                      <a href={item.meta.source} target="_blank" rel="noreferrer" className="links-action-btn" title="Abrir Link Original">
-                        <ExternalLink size={12} strokeWidth={1.75} />
-                      </a>
-                    )}
-                    <button className="links-action-btn" title="Copiar Link/Nome"
-                      onClick={() => {
-                        navigator.clipboard.writeText(item.meta.source);
-                        alert('Link copiado!');
-                      }}>
-                      <Info size={12} strokeWidth={1.75} />
-                    </button>
-                    <button className="links-action-btn delete" title="Excluir Objeto"
-                      onClick={() => {
-                        const fc = fabricRef.current;
-                        if (fc) {
-                          fc.remove(item.ref);
-                          fc.discardActiveObject();
-                          fc.renderAll();
-                        }
-                      }}>
-                      <Trash2 size={12} strokeWidth={1.75} />
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
+      <LinksDrawer
+        show={showLinksDrawer}
+        isUiHidden={isUiHidden}
+        linksList={linksList}
+        onClose={() => setShowLinksDrawer(false)}
+        focusObject={focusObject}
+        toggleGrayscale={toggleGrayscale}
+        onDelete={(ref) => {
+          const fc = fabricRef.current;
+          if (fc) {
+            fc.remove(ref);
+            fc.discardActiveObject();
+            fc.renderAll();
+          }
+        }}
+      />
 
       {/* ═══════════════════════════════════════════════
           JANELA DE ONBOARDING (CARROSSEL)
           ═══════════════════════════════════════════════ */}
-      {showOnboarding && (
-        <div className="onboarding-overlay" onClick={() => setShowOnboarding(false)}>
-          <div 
-            className="onboarding-modal" 
-            onClick={(e) => e.stopPropagation()}
-            style={{ height: `${[390, 490, 460, 620, 460, 460, 440][activeOnboardingSlide]}px` }}
-          >
-            <button className="onboarding-close-btn" onClick={() => setShowOnboarding(false)} title="Fechar Onboarding">
-              <X size={16} strokeWidth={2} />
-            </button>
+      <OnboardingModal
+        show={showOnboarding}
+        onClose={() => setShowOnboarding(false)}
+        activeSlide={activeOnboardingSlide}
+        setActiveSlide={setActiveOnboardingSlide}
+      />
+      <ClearConfirmModal
+        show={showClearConfirmModal}
+        onClose={() => setShowClearConfirmModal(false)}
+        onClearWithSave={handleClearConfirmWithSave}
+        onClearWithoutSave={handleClearConfirmWithoutSave}
+      />
 
-            <div className="onboarding-content-wrap">
-              <div 
-                className="onboarding-slides-track"
-                style={{ transform: `translateX(-${activeOnboardingSlide * 100}%)` }}
-              >
-                {/* Slide 1: Apresentação */}
-                <div className="onboarding-slide">
-                  <div className="onboarding-icon-banner">
-                    <span className="onboarding-logo-pill">V2</span>
-                    <div className="onboarding-app-logo">
-                      <span className="app-title-bold" style={{ fontSize: '32px' }}>Artero</span>
-                      <span className="app-title-beta" style={{ fontSize: '18px', marginLeft: '6px' }}>Open Beta</span>
-                    </div>
-                  </div>
-                  <h2 className="onboarding-title">Seu Mural Aberto de Inspirações</h2>
-                  <p className="onboarding-desc">
-                    O Artero é o painel mais simples do mundo para colagem de referências e criação de moodboards. Ele oferece uma tela infinita e livre de distrações, projetada para manter você focado no seu fluxo criativo.
-                  </p>
-                  <p className="onboarding-desc" style={{ marginTop: '-12px', fontSize: '13px', color: 'var(--label-3)' }}>
-                    Clique nas bolinhas abaixo ou em Avançar para descobrir como interagir com o canvas.
-                  </p>
-                </div>
-
-                {/* Slide 2: Importação & Formatos */}
-                <div className="onboarding-slide">
-                  <h2 className="onboarding-title">Importação & Formatos</h2>
-                  <div className="onboarding-features-list" style={{ gap: '14px' }}>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
-                      <div className="feature-icon">
-                        <ImagePlus size={18} />
-                      </div>
-                      <div className="feature-details" style={{ width: '100%' }}>
-                        <span className="feature-name">Importar do Computador</span>
-                        <span className="feature-desc">Clique no botão de adicionar imagem no painel inferior para abrir o seletor local.</span>
-                        
-                        {/* Grid de Formatos Suportados abaixo da função de importação */}
-                        <div className="format-badges-grid">
-                          <div className="format-badge">
-                            <FileText size={16} />
-                            <span>PNG</span>
-                          </div>
-                          <div className="format-badge">
-                            <FileText size={16} />
-                            <span>JPG</span>
-                          </div>
-                          <div className="format-badge">
-                            <FileText size={16} />
-                            <span>GIF</span>
-                          </div>
-                          <div className="format-badge">
-                            <FileText size={16} />
-                            <span>WEBP</span>
-                          </div>
-                          <div className="format-badge">
-                            <FileText size={16} />
-                            <span>SVG</span>
-                          </div>
-                          <div className="format-badge">
-                            <FileText size={16} />
-                            <span>HEIC</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
-                      <div className="feature-icon">
-                        <Pointer size={18} />
-                      </div>
-                      <div className="feature-details">
-                        <span className="feature-name">Arrastar & Soltar Global</span>
-                        <span className="feature-desc">Solte qualquer foto direto do seu computador ou navegador na tela do Artero.</span>
-                      </div>
-                    </div>
-                    
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
-                      <div className="feature-icon">
-                        <Clipboard size={18} />
-                      </div>
-                      <div className="feature-details">
-                        <span className="feature-name">Colagem do Clipboard</span>
-                        <span className="feature-desc">Copie imagens da internet (ou dê Print Screen) e simplesmente aperte Ctrl+V no Artero.</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Slide 3: Prancheta & Funções */}
-                <div className="onboarding-slide">
-                  <h2 className="onboarding-title">Prancheta & Funções</h2>
-                  <div className="onboarding-features-list" style={{ gap: '14px' }}>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
-                      <div className="feature-icon" style={{ display: 'flex', gap: '3px', padding: '4px' }}>
-                        <Minus size={11} strokeWidth={2.5} />
-                        <Plus size={11} strokeWidth={2.5} />
-                      </div>
-                      <div className="feature-details">
-                        <span className="feature-name">Redimensionar Prancheta (+ / -)</span>
-                        <span className="feature-desc">Use os botões de mais (+) e menos (-) no painel esquerdo para expandir ou encolher a área de exportação.</span>
-                      </div>
-                    </div>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
-                      <div className="feature-icon">
-                        <Grid size={18} />
-                      </div>
-                      <div className="feature-details" style={{ width: '100%' }}>
-                        <span className="feature-name">Quadros e Grades Técnicas</span>
-                        <span className="feature-desc">Escolha o estilo de prancheta ideal clicando no menu do botão Grid:</span>
-                        
-                        {/* Grid de Cores/Pranchetas do Onboarding */}
-                        <div style={{ display: 'flex', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--fill-1)', padding: '5px 10px', borderRadius: '14px', fontSize: '11px', border: '1px solid var(--separator)', color: 'var(--label)' }}>
-                            <span style={{ backgroundColor: '#0041BA', width: '12px', height: '12px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.2)' }} />
-                            <strong>Blueprint</strong>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--fill-1)', padding: '5px 10px', borderRadius: '14px', fontSize: '11px', border: '1px solid var(--separator)', color: 'var(--label)' }}>
-                            <span style={{ backgroundColor: '#1A1A1A', width: '12px', height: '12px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.2)' }} />
-                            <strong>Giz Negro</strong>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--fill-1)', padding: '5px 10px', borderRadius: '14px', fontSize: '11px', border: '1px solid var(--separator)', color: 'var(--label)' }}>
-                            <span style={{ backgroundColor: '#0F3A2E', width: '12px', height: '12px', borderRadius: '50%', border: '1px solid rgba(255,255,255,0.2)' }} />
-                            <strong>Giz/Corte Verde</strong>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--fill-1)', padding: '5px 10px', borderRadius: '14px', fontSize: '11px', border: '1px solid var(--separator)', color: 'var(--label)' }}>
-                            <span style={{ backgroundColor: '#F4EBD9', width: '12px', height: '12px', borderRadius: '50%', border: '1px solid rgba(0,0,0,0.15)' }} />
-                            <strong>Papel Creme</strong>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--fill-1)', padding: '5px 10px', borderRadius: '14px', fontSize: '11px', border: '1px solid var(--separator)', color: 'var(--label)' }}>
-                            <span style={{ backgroundColor: '#F5F5F5', width: '12px', height: '12px', borderRadius: '50%', border: '1px solid rgba(0,0,0,0.15)' }} />
-                            <strong>Off-White</strong>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
-                      <div className="feature-icon">
-                        <Sun size={18} />
-                      </div>
-                      <div className="feature-details">
-                        <span className="feature-name">Modo Dia & Noite (Claro/Escuro)</span>
-                        <span className="feature-desc">Alterne entre o tema Claro e o Tema Escuro (Night Mode) clicando no botão de Sol/Lua no canto inferior direito.</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Slide 4: Atalhos de Mouse & Teclado */}
-                <div className="onboarding-slide">
-                  <h2 className="onboarding-title">Atalhos de Mouse & Teclado</h2>
-                  
-                  {/* Bloco 1: Atalhos de Mouse */}
-                  <h3 className="onboarding-subtitle" style={{ fontSize: '12px', fontWeight: '700', color: 'var(--blue)', letterSpacing: '0.5px', marginBottom: '4px' }}>Atalhos de mouse</h3>
-                  <div className="onboarding-features-list" style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '6px' }}>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
-                      <span className="feature-kbd-icon">Mouse Dir</span>
-                      <div className="feature-details">
-                        <span className="feature-name">Mão (Pan)</span>
-                        <span className="feature-desc">Arraste a tela segurando o botão direito do mouse.</span>
-                      </div>
-                    </div>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
-                      <span className="feature-kbd-icon">Scroll</span>
-                      <div className="feature-details">
-                        <span className="feature-name">Zoom Contínuo</span>
-                        <span className="feature-desc">Use a roda do mouse para aproximar ou afastar a tela.</span>
-                      </div>
-                    </div>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
-                      <span className="feature-kbd-icon">2 Cliques</span>
-                      <div className="feature-details">
-                        <span className="feature-name">Pan por Clique</span>
-                        <span className="feature-desc">Dois cliques no fundo para mover o canvas sem atalhos.</span>
-                      </div>
-                    </div>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
-                      <span className="feature-kbd-icon">Drag</span>
-                      <div className="feature-details">
-                        <span className="feature-name">Seleção por Janela</span>
-                        <span className="feature-desc">Arraste o mouse no fundo com botão esquerdo para selecionar.</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Bloco 2: Atalhos de Teclado */}
-                  <h3 className="onboarding-subtitle" style={{ fontSize: '12px', fontWeight: '700', color: 'var(--blue)', letterSpacing: '0.5px', marginTop: '6px', marginBottom: '4px' }}>Atalhos de teclado</h3>
-                  <div className="onboarding-features-list" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
-                      <span className="feature-kbd-icon">V / H</span>
-                      <div className="feature-details">
-                        <span className="feature-name">Seleção / Mão</span>
-                        <span className="feature-desc">Alterne entre Seta (V) e Mãozinha de Pan (H).</span>
-                      </div>
-                    </div>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
-                      <span className="feature-kbd-icon">Espaço</span>
-                      <div className="feature-details">
-                        <span className="feature-name">Mão Temporária</span>
-                        <span className="feature-desc">Segure Barra de Espaço para Pan rápido e solte para voltar.</span>
-                      </div>
-                    </div>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
-                      <span className="feature-kbd-icon">Del / Back</span>
-                      <div className="feature-details">
-                        <span className="feature-name">Deletar Imagem</span>
-                        <span className="feature-desc">Apague a imagem selecionada usando as teclas Delete ou Backspace.</span>
-                      </div>
-                    </div>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
-                      <span className="feature-kbd-icon">Ctrl+Z/Y</span>
-                      <div className="feature-details">
-                        <span className="feature-name">Desfazer/Refazer</span>
-                        <span className="feature-desc">Desfaça ou refaça suas últimas alterações no canvas.</span>
-                      </div>
-                    </div>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start', margin: 0 }}>
-                      <span className="feature-kbd-icon">[ / ]</span>
-                      <div className="feature-details">
-                        <span className="feature-name">Z-Index (Camadas)</span>
-                        <span className="feature-desc">Use os colchetes para enviar a imagem selecionada para trás ou trazer para frente.</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Slide 5: Info & Organização */}
-                <div className="onboarding-slide">
-                  <h2 className="onboarding-title">Info & Organização</h2>
-                  <div className="onboarding-features-list" style={{ gap: '14px' }}>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
-                      <div className="feature-icon">
-                        <LayoutGrid size={18} />
-                      </div>
-                      <div className="feature-details">
-                        <span className="feature-name">Auto-organização (Magic Grid)</span>
-                        <span className="feature-desc">Organize todas as imagens em fileiras alinhadas instantaneamente com um clique.</span>
-                      </div>
-                    </div>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
-                      <div className="feature-icon">
-                        <Maximize size={18} />
-                      </div>
-                      <div className="feature-details">
-                        <span className="feature-name">Enquadrar Tudo (Magic Zoom)</span>
-                        <span className="feature-desc">Centraliza e ajusta o zoom automaticamente para enquadrar todas as imagens na tela com margem simétrica.</span>
-                      </div>
-                    </div>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
-                      <div className="feature-icon">
-                        <Link size={18} />
-                      </div>
-                      <div className="feature-details">
-                        <span className="feature-name">Painel de Links & Referências</span>
-                        <span className="feature-desc">Acesse metadados, links de origem das imagens e gerencie itens diretamente pela Sidebar.</span>
-                      </div>
-                    </div>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
-                      <div className="feature-icon">
-                        <Contrast size={18} />
-                      </div>
-                      <div className="feature-details">
-                        <span className="feature-name">Seleção Preto e Branco (Monocromático)</span>
-                        <span className="feature-desc">Aplique filtros preto e branco nas imagens selecionadas com o botão de contraste no painel inferior.</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Slide 6: Salvar & Exportar */}
-                <div className="onboarding-slide">
-                  <h2 className="onboarding-title">Salvar & Exportar</h2>
-                  <div className="onboarding-features-list" style={{ gap: '14px' }}>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
-                      <div className="feature-icon">
-                        <Save size={18} />
-                      </div>
-                      <div className="feature-details">
-                        <span className="feature-name">Auto-salvamento Resiliente</span>
-                        <span className="feature-desc">Seu trabalho é salvo localmente em cache de forma automática a cada alteração.</span>
-                      </div>
-                    </div>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
-                      <div className="feature-icon">
-                        <ImagePlus size={18} />
-                      </div>
-                      <div className="feature-details">
-                        <span className="feature-name">Exportar Imagens (PNG / JPG)</span>
-                        <span className="feature-desc">Gere um arquivo de imagem da prancheta inteira com fundo transparente ou colorido.</span>
-                      </div>
-                    </div>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
-                      <div className="feature-icon">
-                        <FileText size={18} />
-                      </div>
-                      <div className="feature-details">
-                        <span className="feature-name">Exportar PDF Vetorial</span>
-                        <span className="feature-desc">Gere PDFs de alta qualidade no tamanho original da prancheta ou em formatos padrão (A2 a A5).</span>
-                      </div>
-                    </div>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
-                      <div className="feature-icon">
-                        <FileJson size={18} />
-                      </div>
-                      <div className="feature-details">
-                        <span className="feature-name">Salvar em Arquivo Editável (JSON)</span>
-                        <span className="feature-desc">Exporte ou importe um arquivo `.json` contendo todas as referências do seu moodboard para trabalhar depois.</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Slide 7: Desenvolvedores & Ecossistema */}
-                <div className="onboarding-slide">
-                  <h2 className="onboarding-title">Desenvolvedores & Ecossistema</h2>
-                  <div className="onboarding-features-list" style={{ gap: '14px' }}>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
-                      <div className="feature-icon" style={{ fontSize: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        🇧🇷
-                      </div>
-                      <div className="feature-details">
-                        <span className="feature-name">Software Livre & Brasileiro</span>
-                        <span className="feature-desc">
-                          O Artero open beta é um projeto aberto (open source) de uma empresa brasileira chamada <strong>Pragmatas Serviços Criativos</strong>.
-                        </span>
-                      </div>
-                    </div>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
-                      <div className="feature-icon">
-                        <LayoutGrid size={18} />
-                      </div>
-                      <div className="feature-details">
-                        <span className="feature-name">Pacote TRAMA</span>
-                        <span className="feature-desc">
-                          O Artero Open Beta é parte da TRAMA (Tecnologias e Recursos Abertos para Mídias e Artes), um conjunto de websoftwares que serão criados e distribuídos pensados na realidade e soberania digital brasileira.
-                        </span>
-                      </div>
-                    </div>
-                    <div className="onboarding-feature-item" style={{ alignItems: 'flex-start' }}>
-                      <div className="feature-icon">
-                        <Coffee size={18} style={{ color: '#C88B55' }} />
-                      </div>
-                      <div className="feature-details">
-                        <span className="feature-name">Apoie o Desenvolvimento</span>
-                        <span className="feature-desc">
-                          Pague um cafezinho para a equipe! <a href="#apoie" onClick={(e) => e.preventDefault()} style={{ color: 'var(--blue)', textDecoration: 'underline', fontWeight: '500' }}>Fazer uma contribuição</a>
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Assinatura discreta centralizada no respiro */}
-                  <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingTop: '16px' }}>
-                    <div style={{ textAlign: 'center', fontSize: '11px', color: 'var(--label-3)', opacity: 0.8, letterSpacing: '-0.2px' }}>
-                      Desenvolvido por <strong>João Conrado</strong> e revisado por <strong>João Tarran</strong>
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-            </div>
-
-            <div className="onboarding-footer">
-              <button 
-                className="onboarding-nav-btn text" 
-                disabled={activeOnboardingSlide === 0} 
-                onClick={() => setActiveOnboardingSlide(s => s - 1)}
-              >
-                Voltar
-              </button>
-
-              <div className="onboarding-dots">
-                {[0, 1, 2, 3, 4, 5, 6].map((idx) => (
-                  <button 
-                    key={idx} 
-                    className={`onboarding-dot${activeOnboardingSlide === idx ? ' is-active' : ''}`}
-                    onClick={() => setActiveOnboardingSlide(idx)}
-                    title={`Ir para slide ${idx + 1}`}
-                  />
-                ))}
-              </div>
-
-              {activeOnboardingSlide < 6 ? (
-                <button 
-                  className="onboarding-nav-btn fill" 
-                  onClick={() => setActiveOnboardingSlide(s => s + 1)}
-                >
-                  Avançar
-                </button>
-              ) : (
-                <button 
-                  className="onboarding-nav-btn fill accent" 
-                  onClick={() => setShowOnboarding(false)}
-                >
-                  Começar
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ═══════════════════════════════════════════════
-          JANELA DE CONFIRMAÇÃO DE LIMPEZA (CLEAR MODAL)
-          ═══════════════════════════════════════════════ */}
-      {showClearConfirmModal && (
-        <div className="onboarding-overlay" onClick={() => setShowClearConfirmModal(false)}>
-          <div className="exit-modal mat" onClick={(e) => e.stopPropagation()}>
-            <button className="onboarding-close-btn" onClick={() => setShowClearConfirmModal(false)} title="Cancelar">
-              <X size={16} strokeWidth={2} />
-            </button>
-            
-            <h2 className="exit-modal-title">Limpar toda a Prancheta?</h2>
-            <p className="exit-modal-desc">
-              Deseja salvar suas referências em um arquivo editável (.json) de backup antes de apagar tudo?
-            </p>
-            
-            <div className="exit-modal-buttons">
-              <button className="exit-btn save" onClick={handleClearConfirmWithSave}>
-                <FileJson size={16} strokeWidth={2} style={{ marginRight: '6px' }} />
-                Salvar JSON e Limpar
-              </button>
-              <button className="exit-btn discard" onClick={handleClearConfirmWithoutSave}>
-                Limpar sem Salvar
-              </button>
-              <button className="exit-btn cancel" onClick={() => setShowClearConfirmModal(false)}>
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ═══════════════════════════════════════════════
-          JANELA DE AVISO MOBILE (MOBILE WARNING)
-          ═══════════════════════════════════════════════ */}
-      {isMobileWarningVisible && (
-        <div className="onboarding-overlay" style={{ zIndex: 9999 }}>
-          <div className="exit-modal mat" style={{ textAlign: 'center', padding: '40px' }}>
-            <h2 className="exit-modal-title">Aviso de Compatibilidade</h2>
-            <p className="exit-modal-desc" style={{ marginBottom: 0 }}>
-              O Artero foi projetado para uso em computadores (desktop/notebook). Para ter acesso a todas as ferramentas e uma melhor experiência de prancheta, acesse através de uma tela maior.
-            </p>
-          </div>
-        </div>
-      )}
-
+      <MobileWarning isVisible={isMobileWarningVisible} />
     </div>
   );
 }
