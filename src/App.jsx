@@ -620,46 +620,108 @@ export default function App() {
       [sortedObjs[i], sortedObjs[j]] = [sortedObjs[j], sortedObjs[i]];
     }
 
-    // Calcula tamanho médio robusto usando o retângulo delimitador (getBoundingRect)
-    let avgW = 0;
-    const avgSize = sortedObjs.reduce((sum, obj) => {
-      const rect = obj.getBoundingRect(true);
-      avgW += rect.width;
-      return sum + Math.min(rect.width, rect.height);
-    }, 0) / sortedObjs.length;
-    avgW = avgW / sortedObjs.length;
-    
-    const padding = Math.max(30, Math.min(100, Math.round(avgSize * 0.12)));
-    const cols = Math.ceil(Math.sqrt(sortedObjs.length));
-    const dynamicRowW = (avgW + padding) * cols;
-    const maxRowW = Math.max(virtualWRef.current * 0.8, dynamicRowW);
-    const startX = virtualWRef.current * 0.1;
-    const startY = virtualHRef.current * 0.1;
+    const count = sortedObjs.length;
+    // Determina a quantidade ideal de colunas com base no número de objetos
+    let cols = 3;
+    if (count <= 2) {
+      cols = count;
+    } else if (count <= 4) {
+      cols = 2;
+    } else if (count <= 9) {
+      cols = 3;
+    } else if (count <= 16) {
+      cols = 4;
+    } else {
+      cols = Math.ceil(Math.sqrt(count));
+    }
 
-    let curX = startX;
-    let curY = startY;
-    let rowH = 0;
+    // Calcula espaçamento dinâmico proporcional ao tamanho médio
+    let totalW = 0;
+    let totalH = 0;
+    sortedObjs.forEach((obj) => {
+      const rect = obj.getBoundingRect(true);
+      totalW += rect.width;
+      totalH += rect.height;
+    });
+    const avgW = totalW / count;
+    const avgH = totalH / count;
+    const avgSize = (avgW + avgH) / 2;
+    const padding = Math.max(30, Math.min(100, Math.round(avgSize * 0.12)));
+
+    const rows = Math.ceil(count / cols);
+    const colWidths = new Array(cols).fill(0);
+    const rowHeights = new Array(rows).fill(0);
+
+    // Encontra a largura máxima de cada coluna e a altura máxima de cada linha
+    sortedObjs.forEach((obj, index) => {
+      const rect = obj.getBoundingRect(true);
+      const col = index % cols;
+      const row = Math.floor(index / cols);
+      colWidths[col] = Math.max(colWidths[col], rect.width);
+      rowHeights[row] = Math.max(rowHeights[row], rect.height);
+    });
+
+    // Calcula dimensões totais do grid
+    const totalGridW = colWidths.reduce((sum, w) => sum + w, 0) + padding * (cols - 1);
+    const totalGridH = rowHeights.reduce((sum, h) => sum + h, 0) + padding * (rows - 1);
+
+    // Adapta o tamanho da prancheta virtual caso o grid seja maior
+    let boardW = virtualWRef.current;
+    let boardH = virtualHRef.current;
+    
+    const minMargin = 100;
+    const requiredW = totalGridW + minMargin * 2;
+    const requiredH = totalGridH + minMargin * 2;
+
+    if (requiredW > boardW) {
+      boardW = Math.round(requiredW);
+      setVirtualW(boardW);
+      virtualWRef.current = boardW;
+    }
+    if (requiredH > boardH) {
+      boardH = Math.round(requiredH);
+      setVirtualH(boardH);
+      virtualHRef.current = boardH;
+    }
+
+    const startX = (boardW - totalGridW) / 2;
+    const startY = (boardH - totalGridH) / 2;
+
+    // Pré-calcula os offsets das colunas e linhas
+    const colOffsets = [];
+    let accumX = startX;
+    for (let c = 0; c < cols; c++) {
+      colOffsets.push(accumX);
+      accumX += colWidths[c] + padding;
+    }
+
+    const rowOffsets = [];
+    let accumY = startY;
+    for (let r = 0; r < rows; r++) {
+      rowOffsets.push(accumY);
+      accumY += rowHeights[r] + padding;
+    }
 
     fc.discardActiveObject();
 
-    sortedObjs.forEach((obj) => {
+    sortedObjs.forEach((obj, index) => {
+      const col = index % cols;
+      const row = Math.floor(index / cols);
+
       const rect = obj.getBoundingRect(true);
-      const w = rect.width;
-      const h = rect.height;
-
-      if (curX + w > startX + maxRowW && curX > startX) {
-        curY += rowH + padding;
-        curX = startX;
-        rowH = 0;
-      }
-
       const deltaLeft = obj.left - rect.left;
       const deltaTop = obj.top - rect.top;
 
+      // Centraliza o objeto dentro do espaço de sua respectiva célula
+      const cellW = colWidths[col];
+      const cellH = rowHeights[row];
+      const cellX = colOffsets[col] + (cellW - rect.width) / 2;
+      const cellY = rowOffsets[row] + (cellH - rect.height) / 2;
+
       const startLeft = obj.left;
       const startTop = obj.top;
-      const targetLeft = curX + deltaLeft;
-      const targetTop = curY + deltaTop;
+      const targetLeft = cellX + deltaLeft;
+      const targetTop = cellY + deltaTop;
 
       fabric.util.animate({
         startValue: 0,
@@ -675,22 +737,13 @@ export default function App() {
           fc.requestRenderAll();
         }
       });
-
-      rowH = Math.max(rowH, h);
-      curX += w + padding;
     });
 
-    // Altura total requerida inclui um espaço extra generoso de margem para evitar menus inferiores
-    const totalRequiredH = curY + rowH + Math.max(150, virtualHRef.current * 0.15);
-    if (totalRequiredH > virtualHRef.current) {
-      setVirtualH(Math.round(totalRequiredH));
-    } else {
-      // Força o ajuste de centralização caso a prancheta não precise crescer
-      setTimeout(() => {
-        const z = centerAndFit();
-        setZoomLevel(z);
-      }, 550);
-    }
+    // Centraliza a visualização e ajusta o zoom após a animação
+    setTimeout(() => {
+      const z = centerAndFit();
+      setZoomLevel(z);
+    }, 550);
 
     saveHistory();
   }, [saveHistory, centerAndFit]);
@@ -1151,7 +1204,9 @@ export default function App() {
       setIsBlueprint(true);
       
       // Muda o tema automaticamente dependendo da grade escolhida
-      if (['blueprint', 'chalkboard', 'cutting-green'].includes(type)) {
+      // Blueprint (azul) e chalkboard (preto) mudam para o modo day (isDark = false)
+      // Cutting-green (verde), sketch-paper (creme) e off-white (branco) vão para o modo noite (isDark = true)
+      if (['blueprint', 'chalkboard'].includes(type)) {
         setIsDark(false); // modo day
       } else {
         setIsDark(true); // modo noite
